@@ -1,41 +1,38 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
-	// "fmt"
+	"github.com/alext/tablecloth"
+	"github.com/go-martini/martini"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
+	"sync"
 )
 
-type statusResponse struct {
-	// Field names should be public, so that encoding/json can see them
-	Status  string `json:"status"`
-	Message string `json:"message"`
-}
-
 func main() {
+	if wd := os.Getenv("GOVUK_APP_ROOT"); wd != "" {
+		tablecloth.WorkingDir = wd
+	}
+
 	var (
 		port = flag.Int("port", 8080, "Port that the server should listen on")
 	)
 
 	flag.Parse()
-	http.Handle("/_status", http.HandlerFunc(statusHandler))
+	m := martini.Classic()
+	m.Get("/_status", statusHandler)
+	m.Get("/_status/data-sets", dataSetStatusHandler)
 
-	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(*port), nil))
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	go serve(":"+strconv.Itoa(*port), m, wg)
+	wg.Wait()
 }
 
-func statusHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "none")
-	status := statusResponse{
-		Status:  "ok",
-		Message: "database seems fine",
-	}
-	encoder := json.NewEncoder(w)
-	if err := encoder.Encode(status); err != nil {
-		panic(err)
-	}
-
+func serve(addr string, m http.Handler, wg *sync.WaitGroup) {
+	defer wg.Done()
+	log.Fatal(tablecloth.ListenAndServe(addr, m))
 }
