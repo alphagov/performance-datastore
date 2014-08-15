@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/jabley/performance-datastore/config_api"
 	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 	"net/http"
 	"sync"
 	"time"
@@ -92,10 +93,10 @@ func dataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	var wg sync.WaitGroup
 	wg.Add(len(datasets))
-	failing := make(chan DataSetStatus)
+	failing := make(chan DataSetStatus, len(datasets))
 
-	for _, config := range datasets {
-		go checkFreshness(config.(map[string]interface{}), failing, wg)
+	for _, dataset := range datasets {
+		go checkFreshness(dataset.(map[string]interface{}), failing, wg)
 	}
 
 	wg.Wait()
@@ -112,22 +113,22 @@ func dataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func checkFreshness(
-	config map[string]interface{},
+	dataset map[string]interface{},
 	failing chan DataSetStatus,
 	wg sync.WaitGroup) {
 	defer wg.Done()
 	session := getMgoSession()
 	defer session.Close()
 
-	if isStale(config, session) {
-		failing <- DataSetStatus{config["name"].(string), 0, time.Now(), 0}
+	if isStale(dataset, session) {
+		failing <- DataSetStatus{dataset["name"].(string), 0, time.Now(), 0}
 	}
 }
 
-func isStale(config map[string]interface{}, session *mgo.Session) bool {
-	expectedMaxAge := getExpectedMaxAge(config)
+func isStale(dataset map[string]interface{}, session *mgo.Session) bool {
+	expectedMaxAge := getMaxExpectedAge(dataset)
 	now := time.Now()
-	lastUpdated := getLastUpdated(config, session)
+	lastUpdated := getLastUpdated(dataset, session)
 
 	if isStalenessAppropriate(expectedMaxAge, lastUpdated) {
 		return now.Sub(*lastUpdated) > time.Duration(*expectedMaxAge)
@@ -136,18 +137,42 @@ func isStale(config map[string]interface{}, session *mgo.Session) bool {
 	return false
 }
 
-func getExpectedMaxAge(config map[string]interface{}) *int {
-	return nil
+func getMaxExpectedAge(dataset map[string]interface{}) (maxExpectedAge *int64) {
+	value, ok := dataset["max_age_expected"].(int64)
+
+	// where does the responsibility for setting a default lie? I suggest
+	// within the Configuration API
+	if ok {
+		maxExpectedAge = &value
+	}
+	return maxExpectedAge
 }
 
-func getLastUpdated(config map[string]interface{}, session *mgo.Session) *time.Time {
-	return nil
+func getLastUpdated(dataset map[string]interface{}, session *mgo.Session) (t *time.Time) {
+	var lastUpdated bson.M
+	session.SetMode(mgo.Monotonic, true)
+
+	coll := session.DB("backdrop").C(dataset["name"].(string))
+	err := coll.Find(nil).Sort("-_updated_at").One(&lastUpdated)
+
+	if err != nil {
+		panic(err)
+	}
+
+	t = nil
+
+	value, isTime := lastUpdated["_updated_at"].(time.Time)
+
+	if isTime {
+		t = &value
+	}
+	return
 }
 
 // isStalenessAppropriate returns false if there is no limit on
 // expected max age or the data set has never been updated, otherwise
 // returns true
-func isStalenessAppropriate(maxAge *int, lastUpdated *time.Time) bool {
+func isStalenessAppropriate(maxAge *int64, lastUpdated *time.Time) bool {
 	return maxAge != nil && lastUpdated != nil
 }
 
