@@ -90,16 +90,7 @@ func dataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(len(datasets))
-	failing := make(chan DataSetStatus, len(datasets))
-
-	for _, dataset := range datasets {
-		go checkFreshness(dataset.(map[string]interface{}), failing, wg)
-	}
-
-	wg.Wait()
-
+	failing := collectStaleness(datasets)
 	status := summariseStaleness(failing)
 
 	setStatusHeaders(w)
@@ -126,6 +117,20 @@ func checkFreshness(
 func setStatusHeaders(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "none")
+}
+
+func collectStaleness(datasets []interface{}) (failing chan DataSetStatus) {
+	wg := &sync.WaitGroup{}
+	wg.Add(len(datasets))
+	failing = make(chan DataSetStatus, len(datasets))
+
+	for _, dataset := range datasets {
+		go checkFreshness(dataset.(map[string]interface{}), failing, *wg)
+	}
+
+	wg.Wait()
+
+	return
 }
 
 func isStale(dataset map[string]interface{}, session *mgo.Session) bool {
