@@ -148,7 +148,7 @@ func getMaxExpectedAge(dataset map[string]interface{}) (maxExpectedAge *int64) {
 	if ok {
 		maxExpectedAge = &value
 	}
-	return maxExpectedAge
+	return
 }
 
 func getLastUpdated(dataset map[string]interface{}, session *mgo.Session) (t *time.Time) {
