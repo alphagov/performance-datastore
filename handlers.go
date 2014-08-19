@@ -104,7 +104,7 @@ func dataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 func checkFreshness(
 	dataset map[string]interface{},
 	failing chan DataSetStatus,
-	wg sync.WaitGroup) {
+	wg *sync.WaitGroup) {
 	defer wg.Done()
 	session := getMgoSession()
 	defer session.Close()
@@ -125,7 +125,7 @@ func collectStaleness(datasets []interface{}) (failing chan DataSetStatus) {
 	failing = make(chan DataSetStatus, len(datasets))
 
 	for _, dataset := range datasets {
-		go checkFreshness(dataset.(map[string]interface{}), failing, *wg)
+		go checkFreshness(dataset.(map[string]interface{}), failing, wg)
 	}
 
 	wg.Wait()
