@@ -17,7 +17,7 @@ func ListDataSets() ([]interface{}, error) {
 	return getJSONArray("/data-sets")
 }
 
-func get(path string) (*http.Response, error) {
+func get(path string) (res *http.Response, err error) {
 	URL := fmt.Sprintf("%s%s", baseURL, path)
 	req, err := http.NewRequest("GET", URL, nil)
 
@@ -30,7 +30,7 @@ func get(path string) (*http.Response, error) {
 	req.Header.Add("User-Agent", fmt.Sprintf("Performance-Platform-Client/%s", version))
 
 	// TODO: Python version currently has exponential backoff with up to 5 tries
-	res, err := client.Do(req)
+	res, err = client.Do(req)
 
 	if err != nil {
 		return nil, err
