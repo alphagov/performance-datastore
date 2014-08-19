@@ -109,7 +109,7 @@ func checkFreshness(
 	session := getMgoSession()
 	defer session.Close()
 
-	if isStale(dataset, session) {
+	if isStale(dataset, session) && isPublished(dataset) {
 		failing <- DataSetStatus{dataset["name"].(string), 0, time.Now(), 0}
 	}
 }
@@ -152,6 +152,15 @@ func getMaxExpectedAge(dataset map[string]interface{}) (maxExpectedAge *int64) {
 	// within the Configuration API
 	if ok {
 		maxExpectedAge = &value
+	}
+	return
+}
+
+func isPublished(dataset map[string]interface{}) (published bool) {
+	value, ok := dataset["published"].(bool)
+
+	if ok {
+		published = value
 	}
 	return
 }
