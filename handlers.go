@@ -43,9 +43,6 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 
 	session.SetMode(mgo.Eventual, true)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "none")
-
 	status := statusResponse{
 		Status:  "ok",
 		Message: "database seems fine",
@@ -56,6 +53,8 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 		status.Message = err.Error()
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+
+	setStatusHeaders(w)
 
 	encoder := json.NewEncoder(w)
 	if err := encoder.Encode(status); err != nil {
@@ -103,8 +102,7 @@ func dataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	status := summariseStaleness(failing)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "none")
+	setStatusHeaders(w)
 
 	encoder := json.NewEncoder(w)
 	if err := encoder.Encode(status); err != nil {
@@ -123,6 +121,11 @@ func checkFreshness(
 	if isStale(dataset, session) {
 		failing <- DataSetStatus{dataset["name"].(string), 0, time.Now(), 0}
 	}
+}
+
+func setStatusHeaders(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "none")
 }
 
 func isStale(dataset map[string]interface{}, session *mgo.Session) bool {
