@@ -56,11 +56,7 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	setStatusHeaders(w)
-
-	encoder := json.NewEncoder(w)
-	if err := encoder.Encode(status); err != nil {
-		panic(err)
-	}
+	serialiseJSON(w, status)
 }
 
 type dataSetStatusResponse struct {
@@ -95,7 +91,10 @@ func dataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 	status := summariseStaleness(failing)
 
 	setStatusHeaders(w)
+	serialiseJSON(w, status)
+}
 
+func serialiseJSON(w http.ResponseWriter, status interface{}) {
 	encoder := json.NewEncoder(w)
 	if err := encoder.Encode(status); err != nil {
 		panic(err)
