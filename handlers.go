@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/jabley/performance-datastore/config_api"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
@@ -196,7 +197,7 @@ func isStalenessAppropriate(maxAge *int64, lastUpdated *time.Time) bool {
 func summariseStaleness(failing chan DataSetStatus) dataSetStatusResponse {
 	allGood := true
 
-	message := "All data_sets are in date"
+	message := "All data-sets are in date"
 
 	var failures []DataSetStatus
 
@@ -210,11 +211,17 @@ func summariseStaleness(failing chan DataSetStatus) dataSetStatusResponse {
 			Status:  "ok",
 			Message: message,
 		}
-
 	} else {
+		var descriptive string
+		if len(failures) > 1 {
+			descriptive = "data-sets are"
+		} else {
+			descriptive = "data-set is"
+		}
+		message = fmt.Sprintf("%d %s out of date", len(failures), descriptive)
 		return dataSetStatusResponse{
 			Status:   "not okay",
-			Message:  "Whoops",
+			Message:  "",
 			DataSets: failures,
 		}
 	}
