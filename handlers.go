@@ -49,9 +49,9 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 		Message: "database seems fine",
 	}
 
-	if err := session.Ping(); err != nil {
+	if addrs := session.LiveServers(); len(addrs) == 0 {
 		status.Status = "error"
-		status.Message = err.Error()
+		status.Message = "cannot connect to database"
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
