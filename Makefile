@@ -1,7 +1,7 @@
 .PHONY: deps test build rm_compiled_self
 
 BINARY := performance_datastore
-ORG_PATH := github.com/alphagov
+ORG_PATH := github.com/jabley
 REPO_PATH := $(ORG_PATH)/performance-datastore
 
 all: deps fmt test build
