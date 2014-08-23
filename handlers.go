@@ -243,17 +243,19 @@ func summariseStaleness(failing chan DataSetStatus) dataSetStatusResponse {
 			Message: message,
 		}
 	} else {
-		var descriptive string
-		if len(failures) > 1 {
-			descriptive = "data-sets are"
-		} else {
-			descriptive = "data-set is"
-		}
-		message = fmt.Sprintf("%d %s out of date", len(failures), descriptive)
+		message = fmt.Sprintf("%d %s out of date", len(failures), pluraliseDataSets(failures))
 		return dataSetStatusResponse{
 			Status:   "not okay",
 			Message:  "",
 			DataSets: failures,
 		}
+	}
+}
+
+func pluraliseDataSets(failures []DataSetStatus) string {
+	if len(failures) > 1 {
+		return "data-sets are"
+	} else {
+		return "data-set is"
 	}
 }
