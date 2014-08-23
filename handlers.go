@@ -25,6 +25,13 @@ var (
 	mgoURL          = "localhost"
 )
 
+type DataSetMetaData map[string]interface{}
+
+type DataSet struct {
+	storage  *mgo.Session
+	metaData DataSetMetaData
+}
+
 func getMgoSession() *mgo.Session {
 	if mgoSession == nil {
 		var err error
@@ -88,7 +95,7 @@ func dataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	failing := collectStaleness(datasets)
+	failing := collectStaleness(datasets, session)
 	status := summariseStaleness(failing)
 
 	setStatusHeaders(w)
@@ -125,15 +132,13 @@ func serialiseJSON(w http.ResponseWriter, status interface{}) {
 }
 
 func checkFreshness(
-	dataset map[string]interface{},
+	dataSet DataSet,
 	failing chan DataSetStatus,
 	wg *sync.WaitGroup) {
 	defer wg.Done()
-	session := getMgoSession()
-	defer session.Close()
 
-	if isStale(dataset, session) && isPublished(dataset) {
-		failing <- DataSetStatus{dataset["name"].(string), 0, time.Now(), 0}
+	if dataSet.isStale() && dataSet.isPublished() {
+		failing <- DataSetStatus{dataSet.Name(), 0, time.Now(), 0}
 	}
 }
 
@@ -142,13 +147,13 @@ func setStatusHeaders(w http.ResponseWriter) {
 	w.Header().Set("Cache-Control", "none")
 }
 
-func collectStaleness(datasets []interface{}) (failing chan DataSetStatus) {
+func collectStaleness(datasets []interface{}, session *mgo.Session) (failing chan DataSetStatus) {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(datasets))
 	failing = make(chan DataSetStatus, len(datasets))
 
 	for _, dataset := range datasets {
-		go checkFreshness(dataset.(map[string]interface{}), failing, wg)
+		go checkFreshness(DataSet{session, dataset.(DataSetMetaData)}, failing, wg)
 	}
 
 	wg.Wait()
@@ -156,10 +161,10 @@ func collectStaleness(datasets []interface{}) (failing chan DataSetStatus) {
 	return
 }
 
-func isStale(dataset map[string]interface{}, session *mgo.Session) bool {
-	expectedMaxAge := getMaxExpectedAge(dataset)
+func (d DataSet) isStale() bool {
+	expectedMaxAge := d.getMaxExpectedAge()
 	now := time.Now()
-	lastUpdated := getLastUpdated(dataset, session)
+	lastUpdated := d.getLastUpdated()
 
 	if isStalenessAppropriate(expectedMaxAge, lastUpdated) {
 		return now.Sub(*lastUpdated) > time.Duration(*expectedMaxAge)
@@ -168,8 +173,8 @@ func isStale(dataset map[string]interface{}, session *mgo.Session) bool {
 	return false
 }
 
-func getMaxExpectedAge(dataset map[string]interface{}) (maxExpectedAge *int64) {
-	value, ok := dataset["max_age_expected"].(int64)
+func (d DataSet) getMaxExpectedAge() (maxExpectedAge *int64) {
+	value, ok := d.metaData["max_age_expected"].(int64)
 
 	// where does the responsibility for setting a default lie? I suggest
 	// within the Configuration API
@@ -179,8 +184,8 @@ func getMaxExpectedAge(dataset map[string]interface{}) (maxExpectedAge *int64) {
 	return
 }
 
-func isPublished(dataset map[string]interface{}) (published bool) {
-	value, ok := dataset["published"].(bool)
+func (d DataSet) isPublished() (published bool) {
+	value, ok := d.metaData["published"].(bool)
 
 	if ok {
 		published = value
@@ -188,11 +193,15 @@ func isPublished(dataset map[string]interface{}) (published bool) {
 	return
 }
 
-func getLastUpdated(dataset map[string]interface{}, session *mgo.Session) (t *time.Time) {
-	var lastUpdated bson.M
-	session.SetMode(mgo.Monotonic, true)
+func (d DataSet) Name() string {
+	return d.metaData["name"].(string)
+}
 
-	coll := session.DB("backdrop").C(dataset["name"].(string))
+func (d DataSet) getLastUpdated() (t *time.Time) {
+	var lastUpdated bson.M
+	d.storage.SetMode(mgo.Monotonic, true)
+
+	coll := d.storage.DB("backdrop").C(d.Name())
 	err := coll.Find(nil).Sort("-_updated_at").One(&lastUpdated)
 
 	if err != nil {
