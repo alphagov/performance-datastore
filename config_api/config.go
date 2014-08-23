@@ -13,6 +13,23 @@ var (
 	version = "1.0"
 )
 
+func DataSet(dataSetName string) (map[string]interface{}, error) {
+	return getJSONObject("/data-sets/" + dataSetName)
+}
+
+func DataType(dataGroup string, dataType string) (map[string]interface{}, error) {
+	res, err := getJSONArray("/data-sets?data-group=" + dataGroup + "&data-type=" + dataType)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if res != nil && len(res) > 0 {
+		return res[0].(map[string]interface{}), nil
+	}
+	return nil, fmt.Errorf("No such data set")
+}
+
 func ListDataSets() ([]interface{}, error) {
 	return getJSONArray("/data-sets")
 }
