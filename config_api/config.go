@@ -77,19 +77,26 @@ func getJSONObject(path string) (map[string]interface{}, error) {
 }
 
 func parseObject(res *http.Response) (map[string]interface{}, error) {
-	defer res.Body.Close()
-	dec := json.NewDecoder(res.Body)
 	var v map[string]interface{}
-	if err := dec.Decode(&v); err != nil {
+	result, err := parseJSON(res, v)
+	if err != nil {
 		return nil, err
 	}
-	return v, nil
+	return result.(map[string]interface{}), err
 }
 
 func parseArray(res *http.Response) ([]interface{}, error) {
+	var v []interface{}
+	result, err := parseJSON(res, v)
+	if err != nil {
+		return nil, err
+	}
+	return result.([]interface{}), err
+}
+
+func parseJSON(res *http.Response, v interface{}) (interface{}, error) {
 	defer res.Body.Close()
 	dec := json.NewDecoder(res.Body)
-	var v []interface{}
 	if err := dec.Decode(&v); err != nil {
 		return nil, err
 	}
