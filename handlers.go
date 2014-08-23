@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-martini/martini"
 	"github.com/jabley/performance-datastore/config_api"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
@@ -92,6 +93,28 @@ func dataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	setStatusHeaders(w)
 	serialiseJSON(w, status)
+}
+
+// GET|OPTIONS /:data_set_name
+func dataSetHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
+	dataset, err := config_api.DataSet(params["data_set_name"])
+	if err != nil {
+		panic(err)
+	}
+	fetch(dataset, w, r)
+}
+
+// GET|OPTIONS /data/:data_group/data_type
+func dataTypeHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
+	dataset, err := config_api.DataType(params["data_group"], params["data_type"])
+	if err != nil {
+		panic(err)
+	}
+	fetch(dataset, w, r)
+}
+
+func fetch(dataset map[string]interface{}, w http.ResponseWriter, r *http.Request) {
+
 }
 
 func serialiseJSON(w http.ResponseWriter, status interface{}) {
