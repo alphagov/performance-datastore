@@ -121,6 +121,16 @@ func dataTypeHandler(w http.ResponseWriter, r *http.Request, params martini.Para
 }
 
 func fetch(dataset map[string]interface{}, w http.ResponseWriter, r *http.Request) {
+	if dataset == nil {
+		w.WriteHeader(http.StatusNotFound)
+		setStatusHeaders(w)
+		// TODO log it somewhere?
+		serialiseJSON(w, statusResponse{"error", "data_set not found", 0})
+		return
+	}
+	// Is the data set queryable?
+
+	// OPTIONS?
 
 }
 
