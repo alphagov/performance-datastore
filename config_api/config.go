@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/cenkalti/backoff"
 	"net/http"
+	"time"
 )
 
 var (
@@ -68,7 +69,9 @@ func tryGet(req *http.Request) (res *http.Response, err error) {
 		return nil
 	}
 
-	err = backoff.Retry(operation, backoff.NewExponentialBackOff())
+	expo := backoff.NewExponentialBackOff()
+	expo.MaxElapsedTime = (5 * time.Second)
+	err = backoff.Retry(operation, expo)
 	if err != nil {
 		// Operation has failed.
 		return nil, err
