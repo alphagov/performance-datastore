@@ -3,6 +3,7 @@ package config_api
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/cenkalti/backoff"
 	"net/http"
 )
 
@@ -46,14 +47,34 @@ func get(path string) (res *http.Response, err error) {
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("User-Agent", fmt.Sprintf("Performance-Platform-Client/%s", version))
 
-	// TODO: Python version currently has exponential backoff with up to 5 tries
-	res, err = client.Do(req)
+	res, err = tryGet(req)
 
 	if err != nil {
 		return nil, err
 	}
 
 	return res, nil
+}
+
+func tryGet(req *http.Request) (res *http.Response, err error) {
+	operation := func() error {
+		res, httpErr := client.Do(req)
+		if httpErr != nil {
+			return httpErr
+		}
+		if res.StatusCode == 502 || res.StatusCode == 503 {
+			return fmt.Errorf("Server unavailable")
+		}
+		return nil
+	}
+
+	err = backoff.Retry(operation, backoff.NewExponentialBackOff())
+	if err != nil {
+		// Operation has failed.
+		return nil, err
+	}
+
+	return
 }
 
 func getJSONArray(path string) ([]interface{}, error) {
