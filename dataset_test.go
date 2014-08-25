@@ -23,6 +23,16 @@ func TestPublishedFlagIsRead(t *testing.T) {
 	}
 }
 
+func TestPublishedFlagWithNonBoolValueIsFalsy(t *testing.T) {
+	var metaData DataSetMetaData
+	metaData = make(map[string]interface{})
+	metaData["published"] = "not-boolean"
+	dataSet := DataSet{nil, metaData}
+	if dataSet.isPublished() {
+		t.Error("Default value for non-boolean published field should be false")
+	}
+}
+
 func TestQueryableDefaultValue(t *testing.T) {
 	var metaData DataSetMetaData
 	metaData = make(map[string]interface{})
@@ -39,5 +49,15 @@ func TestQueryableFlagIsRead(t *testing.T) {
 	dataSet := DataSet{nil, metaData}
 	if !dataSet.isQueryable() {
 		t.Error("Queryable field was not read")
+	}
+}
+
+func TestQueryableFlagWithNonBoolValueIsFalsy(t *testing.T) {
+	var metaData DataSetMetaData
+	metaData = make(map[string]interface{})
+	metaData["queryable"] = "not-boolean"
+	dataSet := DataSet{nil, metaData}
+	if dataSet.isPublished() {
+		t.Error("Default value for non-boolean queryable field should be false")
 	}
 }
