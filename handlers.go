@@ -171,6 +171,10 @@ func collectStaleness(datasets []interface{}, session *mgo.Session) (failing cha
 	return
 }
 
+func (d DataSet) isQueryable() (queryable bool) {
+	return d.booleanValue("queryable")
+}
+
 func (d DataSet) isStale() bool {
 	expectedMaxAge := d.getMaxExpectedAge()
 	now := time.Now()
@@ -195,11 +199,16 @@ func (d DataSet) getMaxExpectedAge() (maxExpectedAge *int64) {
 }
 
 func (d DataSet) isPublished() (published bool) {
-	value, ok := d.metaData["published"].(bool)
+	return d.booleanValue("published")
+}
+
+func (d DataSet) booleanValue(field string) (result bool) {
+	value, ok := d.metaData[field].(bool)
 
 	if ok {
-		published = value
+		result = value
 	}
+
 	return
 }
 
