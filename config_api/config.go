@@ -63,7 +63,8 @@ func tryGet(req *http.Request) (res *http.Response, err error) {
 		if httpErr != nil {
 			return httpErr
 		}
-		if res.StatusCode == 502 || res.StatusCode == 503 {
+		switch res.StatusCode {
+		case 502, 503:
 			return fmt.Errorf("Server unavailable")
 		}
 		return nil
