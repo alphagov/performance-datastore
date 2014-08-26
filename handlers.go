@@ -171,7 +171,7 @@ func collectStaleness(datasets []interface{}, session *mgo.Session) (failing cha
 	return
 }
 
-func (d DataSet) isQueryable() (queryable bool) {
+func (d DataSet) isQueryable() bool {
 	return d.booleanValue("queryable")
 }
 
@@ -199,7 +199,7 @@ func (d DataSet) getMaxExpectedAge() (maxExpectedAge *int64) {
 	return
 }
 
-func (d DataSet) isPublished() (published bool) {
+func (d DataSet) isPublished() bool {
 	return d.booleanValue("published")
 }
 
