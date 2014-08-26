@@ -266,7 +266,7 @@ func summariseStaleness(failing chan DataSetStatus) dataSetStatusResponse {
 		message = fmt.Sprintf("%d %s out of date", len(failures), pluraliseDataSets(failures))
 		return dataSetStatusResponse{
 			Status:   "not okay",
-			Message:  "",
+			Message:  message,
 			DataSets: failures,
 		}
 	}
