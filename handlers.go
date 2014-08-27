@@ -104,34 +104,69 @@ func dataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 // GET|OPTIONS /:data_set_name
 func dataSetHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
-	dataset, err := config_api.DataSet(params["data_set_name"])
+	metaData, err := config_api.DataSet(params["data_set_name"])
 	if err != nil {
 		panic(err)
 	}
-	fetch(dataset, w, r)
+	fetch(metaData, w, r)
 }
 
 // GET|OPTIONS /data/:data_group/data_type
 func dataTypeHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
-	dataset, err := config_api.DataType(params["data_group"], params["data_type"])
+	metaData, err := config_api.DataType(params["data_group"], params["data_type"])
 	if err != nil {
 		panic(err)
 	}
-	fetch(dataset, w, r)
+	fetch(metaData, w, r)
 }
 
-func fetch(dataset map[string]interface{}, w http.ResponseWriter, r *http.Request) {
-	if dataset == nil {
-		w.WriteHeader(http.StatusNotFound)
-		setStatusHeaders(w)
-		// TODO log it somewhere?
-		serialiseJSON(w, statusResponse{"error", "data_set not found", 0})
+func logAndReturn(w http.ResponseWriter, message string) {
+	w.WriteHeader(http.StatusNotFound)
+	setStatusHeaders(w)
+	serialiseJSON(w, statusResponse{"error", message, 0})
+}
+
+func fetch(metaData DataSetMetaData, w http.ResponseWriter, r *http.Request) {
+	if metaData == nil {
+		logAndReturn(w, "data_set not found")
 		return
 	}
+
+	session := getMgoSession()
+	defer session.Close()
+
+	session.SetMode(mgo.Eventual, true)
+
+	dataSet := DataSet{session, metaData}
+
 	// Is the data set queryable?
+	if !dataSet.isQueryable() {
+		logAndReturn(w, fmt.Sprintf("data_set %s not found", dataSet.Name()))
+		return
+	}
 
 	// OPTIONS?
+	if r.Method == "OPTIONS" {
+		// TODO Set allowed methods
+		w.Header().Set("Access-Control-Max-Age", "86400")
+		w.Header().Set("Access-Control-Allow-Headers", "Cache-Control")
+		return
+	}
 
+	if validationResult := validateRequest(r, dataSet); validationResult.invalid {
+		logAndReturn(w, fmt.Sprintf(validationResult.message, dataSet.Name()))
+		return
+	}
+
+}
+
+func validateRequest(r *http.Request, dataSet DataSet) (v ValidationResult) {
+	return
+}
+
+type ValidationResult struct {
+	invalid bool
+	message string
 }
 
 func serialiseJSON(w http.ResponseWriter, status interface{}) {
