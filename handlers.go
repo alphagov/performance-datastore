@@ -19,6 +19,14 @@ type statusResponse struct {
 	Code    int    `json:"code"`
 }
 
+type WarningResponse struct {
+	Data    interface{}
+	Warning string `json:"warning"`
+}
+
+type Query struct {
+}
+
 var (
 	mgoSession      *mgo.Session
 	mgoDatabaseName = "backdrop"
@@ -158,6 +166,32 @@ func fetch(metaData DataSetMetaData, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	query := parseQuery(r)
+	data, err := dataSet.Execute(query)
+
+	if err != nil {
+		logAndReturn(w, fmt.Sprintf("Invalid collect function", dataSet.Name()))
+		return
+	}
+
+	var body interface{}
+
+	if !dataSet.isPublished() {
+		warning := "Warning: This data-set is unpublished. \n" +
+			"Data may be subject to change or be inaccurate."
+		w.Header().Set("Cache-Control", "no-cache")
+		body = WarningResponse{data, warning}
+	} else {
+		maxAge := dataSet.CacheDuration()
+		w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d, must-revalidate", maxAge))
+		body = data
+	}
+
+	serialiseJSON(w, body)
+}
+
+func parseQuery(r *http.Request) Query {
+	return Query{}
 }
 
 func validateRequest(r *http.Request, dataSet DataSet) (v ValidationResult) {
@@ -234,8 +268,23 @@ func (d DataSet) getMaxExpectedAge() (maxExpectedAge *int64) {
 	return
 }
 
+func (d DataSet) Execute(query Query) (interface{}, error) {
+	return nil, nil
+}
+
 func (d DataSet) isPublished() bool {
 	return d.booleanValue("published")
+}
+
+func (d DataSet) isRealtime() bool {
+	return d.booleanValue("realtime")
+}
+
+func (d DataSet) CacheDuration() int {
+	if d.isRealtime() {
+		return 120
+	}
+	return 1800
 }
 
 func (d DataSet) booleanValue(field string) (result bool) {
