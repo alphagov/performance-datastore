@@ -19,10 +19,12 @@ third_party/src/$(REPO_PATH):
 fmt:
 	gofmt -w=1 *.go
 	gofmt -w=1 config_api/*.go
+	gofmt -w=1 pkg/dataset/*.go
+	gofmt -w=1 pkg/json_response/*.go
 
 test:
 	go run third_party.go test -v \
-		$(REPO_PATH)
+		$(REPO_PATH) $(REPO_PATH)/pkg/dataset/ $(REPO_PATH)/pkg/json_response/
 
 build:
 	go run third_party.go build -o $(BINARY)

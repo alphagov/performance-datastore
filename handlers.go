@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/go-martini/martini"
 	"github.com/jabley/performance-datastore/config_api"
+	"github.com/jabley/performance-datastore/pkg/dataset"
 	"labix.org/v2/mgo"
-	"labix.org/v2/mgo/bson"
 	"net/http"
 	"sync"
 	"time"
@@ -24,21 +24,11 @@ type WarningResponse struct {
 	Warning string `json:"warning"`
 }
 
-type Query struct {
-}
-
 var (
 	mgoSession      *mgo.Session
 	mgoDatabaseName = "backdrop"
 	mgoURL          = "localhost"
 )
-
-type DataSetMetaData map[string]interface{}
-
-type DataSet struct {
-	storage  *mgo.Session
-	metaData DataSetMetaData
-}
 
 func getMgoSession() *mgo.Session {
 	if mgoSession == nil {
@@ -134,7 +124,7 @@ func logAndReturn(w http.ResponseWriter, message string) {
 	serialiseJSON(w, statusResponse{"error", message, 0})
 }
 
-func fetch(metaData DataSetMetaData, w http.ResponseWriter, r *http.Request) {
+func fetch(metaData dataset.DataSetMetaData, w http.ResponseWriter, r *http.Request) {
 	if metaData == nil {
 		logAndReturn(w, "data_set not found")
 		return
@@ -145,10 +135,10 @@ func fetch(metaData DataSetMetaData, w http.ResponseWriter, r *http.Request) {
 
 	session.SetMode(mgo.Eventual, true)
 
-	dataSet := DataSet{session, metaData}
+	dataSet := dataset.DataSet{session, metaData}
 
 	// Is the data set queryable?
-	if !dataSet.isQueryable() {
+	if !dataSet.IsQueryable() {
 		logAndReturn(w, fmt.Sprintf("data_set %s not found", dataSet.Name()))
 		return
 	}
@@ -176,7 +166,7 @@ func fetch(metaData DataSetMetaData, w http.ResponseWriter, r *http.Request) {
 
 	var body interface{}
 
-	if !dataSet.isPublished() {
+	if !dataSet.IsPublished() {
 		warning := "Warning: This data-set is unpublished. \n" +
 			"Data may be subject to change or be inaccurate."
 		w.Header().Set("Cache-Control", "no-cache")
@@ -190,11 +180,12 @@ func fetch(metaData DataSetMetaData, w http.ResponseWriter, r *http.Request) {
 	serialiseJSON(w, body)
 }
 
-func parseQuery(r *http.Request) Query {
-	return Query{}
+func parseQuery(r *http.Request) dataset.Query {
+	return dataset.Query{}
 }
 
-func validateRequest(r *http.Request, dataSet DataSet) (v ValidationResult) {
+func validateRequest(r *http.Request, dataSet dataset.DataSet) (v ValidationResult) {
+	// look at r.URL.Query()x
 	return
 }
 
@@ -211,12 +202,12 @@ func serialiseJSON(w http.ResponseWriter, status interface{}) {
 }
 
 func checkFreshness(
-	dataSet DataSet,
+	dataSet dataset.DataSet,
 	failing chan DataSetStatus,
 	wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	if dataSet.isStale() && dataSet.isPublished() {
+	if dataSet.IsStale() && dataSet.IsPublished() {
 		failing <- DataSetStatus{dataSet.Name(), 0, time.Now(), 0}
 	}
 }
@@ -231,102 +222,15 @@ func collectStaleness(datasets []interface{}, session *mgo.Session) (failing cha
 	wg.Add(len(datasets))
 	failing = make(chan DataSetStatus, len(datasets))
 
-	for _, dataset := range datasets {
-		go checkFreshness(DataSet{session, dataset.(DataSetMetaData)}, failing, wg)
+	for _, m := range datasets {
+		metaData := m.(dataset.DataSetMetaData)
+		dataSet := dataset.DataSet{session, metaData}
+		go checkFreshness(dataSet, failing, wg)
 	}
 
 	wg.Wait()
 
 	return
-}
-
-func (d DataSet) isQueryable() bool {
-	return d.booleanValue("queryable")
-}
-
-func (d DataSet) isStale() bool {
-	expectedMaxAge := d.getMaxExpectedAge()
-	now := time.Now()
-	lastUpdated := d.getLastUpdated()
-
-	if isStalenessAppropriate(expectedMaxAge, lastUpdated) {
-		return now.Sub(*lastUpdated) > time.Duration(*expectedMaxAge)
-	}
-
-	return false
-}
-
-func (d DataSet) getMaxExpectedAge() (maxExpectedAge *int64) {
-	value, ok := d.metaData["max_age_expected"].(int64)
-
-	// where does the responsibility for setting a default lie? I suggest
-	// within the Configuration API
-	if ok {
-		maxExpectedAge = &value
-	}
-
-	return
-}
-
-func (d DataSet) Execute(query Query) (interface{}, error) {
-	return nil, nil
-}
-
-func (d DataSet) isPublished() bool {
-	return d.booleanValue("published")
-}
-
-func (d DataSet) isRealtime() bool {
-	return d.booleanValue("realtime")
-}
-
-func (d DataSet) CacheDuration() int {
-	if d.isRealtime() {
-		return 120
-	}
-	return 1800
-}
-
-func (d DataSet) booleanValue(field string) (result bool) {
-	value, ok := d.metaData[field].(bool)
-
-	if ok {
-		result = value
-	}
-
-	return
-}
-
-func (d DataSet) Name() string {
-	return d.metaData["name"].(string)
-}
-
-func (d DataSet) getLastUpdated() (t *time.Time) {
-	var lastUpdated bson.M
-	d.storage.SetMode(mgo.Monotonic, true)
-
-	coll := d.storage.DB("backdrop").C(d.Name())
-	err := coll.Find(nil).Sort("-_updated_at").One(&lastUpdated)
-
-	if err != nil {
-		panic(err)
-	}
-
-	t = nil
-
-	value, isTime := lastUpdated["_updated_at"].(time.Time)
-
-	if isTime {
-		t = &value
-	}
-	return
-}
-
-// isStalenessAppropriate returns false if there is no limit on
-// expected max age or the data set has never been updated, otherwise
-// returns true
-func isStalenessAppropriate(maxAge *int64, lastUpdated *time.Time) bool {
-	return maxAge != nil && lastUpdated != nil
 }
 
 func summariseStaleness(failing chan DataSetStatus) dataSetStatusResponse {

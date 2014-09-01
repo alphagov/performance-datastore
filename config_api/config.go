@@ -1,9 +1,9 @@
 package config_api
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/cenkalti/backoff"
+	"github.com/jabley/performance-datastore/pkg/json_response"
 	"net/http"
 	"time"
 )
@@ -88,7 +88,7 @@ func getJSONArray(path string) ([]interface{}, error) {
 		return nil, err
 	}
 
-	return parseArray(res)
+	return json_response.ParseArray(res.Body)
 }
 
 func getJSONObject(path string) (map[string]interface{}, error) {
@@ -98,32 +98,5 @@ func getJSONObject(path string) (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	return parseObject(res)
-}
-
-func parseObject(res *http.Response) (map[string]interface{}, error) {
-	var v map[string]interface{}
-	result, err := parseJSON(res, v)
-	if err != nil {
-		return nil, err
-	}
-	return result.(map[string]interface{}), err
-}
-
-func parseArray(res *http.Response) ([]interface{}, error) {
-	var v []interface{}
-	result, err := parseJSON(res, v)
-	if err != nil {
-		return nil, err
-	}
-	return result.([]interface{}), err
-}
-
-func parseJSON(res *http.Response, v interface{}) (interface{}, error) {
-	defer res.Body.Close()
-	dec := json.NewDecoder(res.Body)
-	if err := dec.Decode(&v); err != nil {
-		return nil, err
-	}
-	return v, nil
+	return json_response.ParseObject(res.Body)
 }
