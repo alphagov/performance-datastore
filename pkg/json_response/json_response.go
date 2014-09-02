@@ -2,6 +2,7 @@ package json_response
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 )
 
@@ -11,7 +12,12 @@ func ParseObject(body io.ReadCloser) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return result.(map[string]interface{}), err
+	r, ok := result.(map[string]interface{})
+
+	if !ok {
+		return nil, fmt.Errorf("Unable to convert to object")
+	}
+	return r, nil
 }
 
 func ParseArray(body io.ReadCloser) ([]interface{}, error) {
@@ -20,7 +26,12 @@ func ParseArray(body io.ReadCloser) ([]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return result.([]interface{}), err
+	r, ok := result.(([]interface{}))
+
+	if !ok {
+		return nil, fmt.Errorf("Unable to convert to array")
+	}
+	return r, nil
 }
 
 func ParseJSON(body io.ReadCloser, v interface{}) (interface{}, error) {
