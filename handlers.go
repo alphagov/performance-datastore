@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-martini/martini"
-	"github.com/jabley/performance-datastore/config_api"
+	"github.com/jabley/performance-datastore/pkg/config_api"
 	"github.com/jabley/performance-datastore/pkg/dataset"
 	"labix.org/v2/mgo"
 	"net/http"
