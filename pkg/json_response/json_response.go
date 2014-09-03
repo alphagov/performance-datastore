@@ -8,7 +8,7 @@ import (
 
 func ParseObject(body io.ReadCloser) (map[string]interface{}, error) {
 	var v map[string]interface{}
-	result, err := ParseJSON(body, v)
+	result, err := parseJSON(body, v)
 	if err != nil {
 		return nil, err
 	}
@@ -22,7 +22,7 @@ func ParseObject(body io.ReadCloser) (map[string]interface{}, error) {
 
 func ParseArray(body io.ReadCloser) ([]interface{}, error) {
 	var v []interface{}
-	result, err := ParseJSON(body, v)
+	result, err := parseJSON(body, v)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func ParseArray(body io.ReadCloser) ([]interface{}, error) {
 	return r, nil
 }
 
-func ParseJSON(body io.ReadCloser, v interface{}) (interface{}, error) {
+func parseJSON(body io.ReadCloser, v interface{}) (interface{}, error) {
 	defer body.Close()
 	dec := json.NewDecoder(body)
 	if err := dec.Decode(&v); err != nil {
