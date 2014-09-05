@@ -22,7 +22,9 @@ fmt:
 
 test:
 	go run third_party.go test -v \
-		$(REPO_PATH) $(REPO_PATH)/pkg/dataset/ $(REPO_PATH)/pkg/json_response/
+		$(REPO_PATH) $(REPO_PATH)/pkg/dataset/ \
+		$(REPO_PATH)/pkg/json_response/ \
+		$(REPO_PATH)/pkg/validation/
 
 build:
 	go run third_party.go build -o $(BINARY)
