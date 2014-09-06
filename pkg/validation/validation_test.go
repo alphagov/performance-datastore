@@ -85,6 +85,32 @@ func TestFilterByFieldNameCannotLookLikeMongoThing(t *testing.T) {
 	expectError(t, args)
 }
 
+func TestSortByAscendingIsOkay(t *testing.T) {
+	args := make(map[string][]string)
+	args["sort_by"] = []string{"foo:ascending"}
+	expectSuccess(t, args)
+}
+
+func TestSortByDescendingIsOkay(t *testing.T) {
+	args := make(map[string][]string)
+	args["sort_by"] = []string{"foo:descending"}
+	expectSuccess(t, args)
+}
+
+func TestSortByAnythingElseFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["sort_by"] = []string{"foo:random"}
+	expectError(t, args)
+	args["sort_by"] = []string{"lulz"}
+	expectError(t, args)
+}
+
+func TestSortByRequiresAValidFieldName(t *testing.T) {
+	args := make(map[string][]string)
+	args["sort_by"] = []string{"with-hypthen:ascending"}
+	expectError(t, args)
+}
+
 func expectError(t *testing.T, args map[string][]string) {
 	if ValidateRequestArgs(args, false) == nil {
 		t.Errorf("%v should have failed", args)
@@ -92,7 +118,7 @@ func expectError(t *testing.T, args map[string][]string) {
 }
 
 func expectSuccess(t *testing.T, args map[string][]string) {
-	if ValidateRequestArgs(args, false) != nil {
-		t.Errorf("%v should have been okay", args)
+	if err := ValidateRequestArgs(args, false); err != nil {
+		t.Errorf("%v should have been okay but was %v", args, err)
 	}
 }

@@ -43,7 +43,7 @@ func isValidFilterBy(candidate string) bool {
 		return false
 	}
 
-	if !validKey.MatchString(strings.Split(candidate, ":")[0]) {
+	if !isValidKey(strings.Split(candidate, ":")[0]) {
 		return false
 	}
 
@@ -52,4 +52,8 @@ func isValidFilterBy(candidate string) bool {
 	}
 
 	return true
+}
+
+func isValidKey(key string) bool {
+	return validKey.MatchString(key)
 }
