@@ -2,7 +2,7 @@ package validation
 
 import (
 	"fmt"
-	"regexp"
+	"time"
 )
 
 type dateTime struct {
@@ -10,7 +10,12 @@ type dateTime struct {
 }
 
 var (
-	timePattern = regexp.MustCompile("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}")
+	// timePattern  = regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}`)
+	validLayouts = []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+		"2006-01-02T15:04:05 -07:00",
+	}
 )
 
 type dateTimeValidator dateTime
@@ -32,15 +37,24 @@ func (x *dateTimeValidator) Validate(args map[string][]string) error {
 		return nil
 	}
 
-	for _, v := range values {
-		if !isValidDateTime(v) {
-			return fmt.Errorf("%s is not a valid datetime", x.name)
-		}
+	if len(values) > 1 {
+		return fmt.Errorf("%s is not a valid datetime", x.name)
+	}
+
+	if !isValidDateTime(values[0]) {
+		return fmt.Errorf("%s is not a valid datetime", x.name)
 	}
 
 	return nil
 }
 
 func isValidDateTime(candidate string) bool {
-	return timePattern.MatchString(candidate)
+	for _, layout := range validLayouts {
+		_, err := time.Parse(layout, candidate)
+		if err == nil {
+			return true
+		}
+	}
+
+	return false
 }

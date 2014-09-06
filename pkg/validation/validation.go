@@ -7,6 +7,7 @@ type Validator interface {
 func ValidateRequestArgs(values map[string][]string, allowRawQueries bool) error {
 	validators := []Validator{
 		NewDateTimeValidator("start_at"),
+		NewDateTimeValidator("end_at"),
 	}
 
 	for _, v := range validators {
