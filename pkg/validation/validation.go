@@ -8,6 +8,7 @@ func ValidateRequestArgs(values map[string][]string, allowRawQueries bool) error
 	validators := []Validator{
 		NewDateTimeValidator("start_at"),
 		NewDateTimeValidator("end_at"),
+		NewFilterByValidator(),
 	}
 
 	for _, v := range validators {

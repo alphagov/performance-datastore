@@ -72,3 +72,49 @@ func TestWellFormattedEndAtIsAllowed(t *testing.T) {
 		t.Errorf("%v should have failed", args)
 	}
 }
+
+func TestFilterByQueryRequiresFieldAndName(t *testing.T) {
+	args := make(map[string][]string)
+	args["filter_by"] = []string{"bar"}
+	err := ValidateRequestArgs(args, false)
+	if err == nil {
+		t.Errorf("%v should have failed", args)
+	}
+}
+
+func TestWellFormattedFilterByIsOkay(t *testing.T) {
+	args := make(map[string][]string)
+	args["filter_by"] = []string{"foo:bar"}
+	err := ValidateRequestArgs(args, false)
+	if err != nil {
+		t.Errorf("%v should have been okay", args)
+	}
+}
+
+func TestAllFilterByArgsAreValidated(t *testing.T) {
+	args := make(map[string][]string)
+	args["filter_by"] = []string{"foo:bar", "baz"}
+	err := ValidateRequestArgs(args, false)
+	if err == nil {
+		t.Errorf("%v should have failed", args)
+	}
+}
+
+func TestFilterByFieldNameIsValidated(t *testing.T) {
+	args := make(map[string][]string)
+	args["filter_by"] = []string{"with-hyphen:bar"}
+	err := ValidateRequestArgs(args, false)
+	if err == nil {
+		t.Errorf("%v should have failed", args)
+	}
+}
+
+func TestFilterByFieldNameCannotLookLikeMongoThing(t *testing.T) {
+	args := make(map[string][]string)
+	args["filter_by"] = []string{"$foo:bar"}
+	err := ValidateRequestArgs(args, false)
+	if err == nil {
+		t.Errorf("%v should have failed", args)
+	}
+}
+
