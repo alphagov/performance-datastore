@@ -1,5 +1,10 @@
 package validation
 
+import (
+	"regexp"
+	"strings"
+)
+
 type Validator interface {
 	Validate(args map[string][]string) error
 }
@@ -12,6 +17,7 @@ func ValidateRequestArgs(values map[string][]string, allowRawQueries bool) error
 		NewSortByValidator(),
 		NewPositiveIntegerValidator("limit"),
 		NewGroupByValidator(),
+		NewCollectValidator(),
 	}
 
 	for _, v := range validators {
@@ -21,4 +27,12 @@ func ValidateRequestArgs(values map[string][]string, allowRawQueries bool) error
 	}
 
 	return nil
+}
+
+var (
+	validKey = regexp.MustCompile(`^[a-z_][a-z0-9_]+$`)
+)
+
+func isValidKey(key string) bool {
+	return validKey.MatchString(strings.ToLower(key))
 }

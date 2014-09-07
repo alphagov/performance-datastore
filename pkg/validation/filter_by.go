@@ -2,15 +2,10 @@ package validation
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 )
 
 type filterByValidator struct{}
-
-var (
-	validKey = regexp.MustCompile(`^[a-z_][a-z0-9_]+$`)
-)
 
 func NewFilterByValidator() Validator {
 	return &filterByValidator{}
@@ -46,8 +41,4 @@ func isValidFilterBy(candidate string) bool {
 	}
 
 	return true
-}
-
-func isValidKey(key string) bool {
-	return validKey.MatchString(key)
 }

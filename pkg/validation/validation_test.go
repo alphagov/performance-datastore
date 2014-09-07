@@ -152,6 +152,75 @@ func TestSortByWithPeriodAndGroupByIsOkay(t *testing.T) {
 	expectSuccess(t, args)
 }
 
+func TestCollectWithoutGroupByFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["collect"] = []string{"bar"}
+	expectError(t, args)
+}
+
+func TestCollectAndGroupByIsOkay(t *testing.T) {
+	args := make(map[string][]string)
+	args["collect"] = []string{"bar"}
+	args["group_by"] = []string{"foo"}
+	expectSuccess(t, args)
+}
+
+func TestCollectIsOkay(t *testing.T) {
+	args := make(map[string][]string)
+	args["collect"] = []string{"a_aAbBzZ_"}
+	args["group_by"] = []string{"foo"}
+	expectSuccess(t, args)
+}
+
+func TestCollectWithFunctionFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["collect"] = []string{"something);while(1){myBadFunction()}"}
+	args["group_by"] = []string{"foo"}
+	expectError(t, args)
+}
+
+func TestCollectWithAHyphenFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["collect"] = []string{"with-hyphen"}
+	args["group_by"] = []string{"foo"}
+	expectError(t, args)
+}
+
+func TestCollectWithAMongoThingFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["collect"] = []string{"$foo"}
+	args["group_by"] = []string{"foo"}
+	expectError(t, args)
+}
+
+func TestCollectOnSameFieldAsGroupByFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["collect"] = []string{"foo"}
+	args["group_by"] = []string{"foo"}
+	expectError(t, args)
+}
+
+func TestCollectOnInternalFieldFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["collect"] = []string{"_foo"}
+	args["group_by"] = []string{"foo"}
+	expectError(t, args)
+}
+
+func TestMultipleCollectIsOkay(t *testing.T) {
+	args := make(map[string][]string)
+	args["collect"] = []string{"bar", "baz"}
+	args["group_by"] = []string{"foo"}
+	expectSuccess(t, args)
+}
+
+func TestCollectWithLaterInternalParameterFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["collect"] = []string{"bar", "_baz"}
+	args["group_by"] = []string{"foo"}
+	expectError(t, args)
+}
+
 func expectError(t *testing.T, args map[string][]string) {
 	if ValidateRequestArgs(args, false) == nil {
 		t.Errorf("%v should have failed", args)
