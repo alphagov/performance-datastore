@@ -111,6 +111,16 @@ func TestSortByRequiresAValidFieldName(t *testing.T) {
 	expectError(t, args)
 }
 
+func TestLimitShouldBeAPositiveInteger(t *testing.T) {
+	args := make(map[string][]string)
+	args["limit"] = []string{"not_a_number"}
+	expectError(t, args)
+	args["limit"] = []string{"-3"}
+	expectError(t, args)
+	args["limit"] = []string{"3"}
+	expectSuccess(t, args)
+}
+
 func expectError(t *testing.T, args map[string][]string) {
 	if ValidateRequestArgs(args, false) == nil {
 		t.Errorf("%v should have failed", args)

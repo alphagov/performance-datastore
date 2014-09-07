@@ -10,6 +10,7 @@ func ValidateRequestArgs(values map[string][]string, allowRawQueries bool) error
 		NewDateTimeValidator("end_at"),
 		NewFilterByValidator(),
 		NewSortByValidator(),
+		NewPositiveIntegerValidator("limit"),
 	}
 
 	for _, v := range validators {
