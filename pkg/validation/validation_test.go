@@ -133,6 +133,25 @@ func TestGroupByOnInvalidFieldNameFails(t *testing.T) {
 	expectError(t, args)
 }
 
+func TestSortByWithPeriodOnlyFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["sort_by"] = []string{"foo:ascending"}
+	args["period"] = []string{"week"}
+	args["start_at"] = []string{"2012-11-12T00:00:00Z"}
+	args["end_at"] = []string{"2012-12-03T00:00:00Z"}
+	expectError(t, args)
+}
+
+func TestSortByWithPeriodAndGroupByIsOkay(t *testing.T) {
+	args := make(map[string][]string)
+	args["sort_by"] = []string{"foo:ascending"}
+	args["period"] = []string{"week"}
+	args["group_by"] = []string{"foobar"}
+	args["start_at"] = []string{"2012-11-12T00:00:00Z"}
+	args["end_at"] = []string{"2012-12-03T00:00:00Z"}
+	expectSuccess(t, args)
+}
+
 func expectError(t *testing.T, args map[string][]string) {
 	if ValidateRequestArgs(args, false) == nil {
 		t.Errorf("%v should have failed", args)

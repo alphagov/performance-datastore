@@ -23,6 +23,14 @@ func (x *sortByValidator) Validate(args map[string][]string) error {
 		return fmt.Errorf("can only sort by one field")
 	}
 
+	_, periodOk := args["period"]
+	_, groupByOk := args["group_by"]
+
+	if periodOk && !groupByOk {
+		return fmt.Errorf(`Cannot sort for period queries without 
+group_by. Period queries are always sorted by time."`)
+	}
+
 	return validateSortBy(values[0])
 }
 
