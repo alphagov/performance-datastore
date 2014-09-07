@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type dateTime struct {
+type dateTimeValidator struct {
 	name string
 }
 
@@ -18,14 +18,8 @@ var (
 	}
 )
 
-type dateTimeValidator dateTime
-
 func NewDateTimeValidator(name string) Validator {
-	return (*dateTimeValidator)(newDateTimeValidator(name))
-}
-
-func newDateTimeValidator(name string) *dateTime {
-	return &dateTime{
+	return &dateTimeValidator{
 		name: name,
 	}
 }

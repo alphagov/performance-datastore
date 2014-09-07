@@ -6,20 +6,14 @@ import (
 	"strings"
 )
 
-type filterBy struct{}
-
-type filterByValidator filterBy
+type filterByValidator struct{}
 
 var (
 	validKey = regexp.MustCompile(`^[a-z_][a-z0-9_]+$`)
 )
 
 func NewFilterByValidator() Validator {
-	return (*filterByValidator)(newFilterByValidator())
-}
-
-func newFilterByValidator() *filterBy {
-	return &filterBy{}
+	return &filterByValidator{}
 }
 
 func (x *filterByValidator) Validate(args map[string][]string) error {

@@ -6,18 +6,10 @@ import (
 	"strings"
 )
 
-type sortBy struct {
-	name string
-}
-
-type sortByValidator sortBy
+type sortByValidator struct{}
 
 func NewSortByValidator() Validator {
-	return (*sortByValidator)(newSortByValidator())
-}
-
-func newSortByValidator() *sortBy {
-	return &sortBy{}
+	return &sortByValidator{}
 }
 
 func (x *sortByValidator) Validate(args map[string][]string) error {
