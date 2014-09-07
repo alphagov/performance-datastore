@@ -121,6 +121,18 @@ func TestLimitShouldBeAPositiveInteger(t *testing.T) {
 	expectSuccess(t, args)
 }
 
+func TestGroupByOnInternalNameFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["group_by"] = []string{"_internal_field"}
+	expectError(t, args)
+}
+
+func TestGroupByOnInvalidFieldNameFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["group_by"] = []string{"with-hyphen"}
+	expectError(t, args)
+}
+
 func expectError(t *testing.T, args map[string][]string) {
 	if ValidateRequestArgs(args, false) == nil {
 		t.Errorf("%v should have failed", args)
