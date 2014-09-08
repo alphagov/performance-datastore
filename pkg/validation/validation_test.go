@@ -109,7 +109,7 @@ func TestSortByAnythingElseFails(t *testing.T) {
 
 func TestSortByRequiresAValidFieldName(t *testing.T) {
 	args := make(map[string][]string)
-	args["sort_by"] = []string{"with-hypthen:ascending"}
+	args["sort_by"] = []string{"with-hyphen:ascending"}
 	expectError(t, args)
 }
 
