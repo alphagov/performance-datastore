@@ -279,6 +279,14 @@ func TestDurationWithStartAtAndEndAtFails(t *testing.T) {
 	expectError(t, args)
 }
 
+func TestPeriodHasALimitedVocabulary(t *testing.T) {
+	args := make(map[string][]string)
+	args["duration"] = []string{"3"}
+	args["period"] = []string{"fortnight"}
+	args["start_at"] = []string{"2000-02-02T00:00:00+00:00"}
+	expectError(t, args)
+}
+
 func expectError(t *testing.T, args map[string][]string) {
 	if ValidateRequestArgs(args, false) == nil {
 		t.Errorf("%v should have failed", args)
