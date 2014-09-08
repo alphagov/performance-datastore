@@ -20,6 +20,7 @@ func TestBadlyFormattedStartAtFails(t *testing.T) {
 func TestWellFormattedStartAtIsOkay(t *testing.T) {
 	args := make(map[string][]string)
 	args["start_at"] = []string{"2000-02-02T00:02:02 +00:00"}
+	args["end_at"] = []string{"2000-02-09T00:02:02 +00:00"}
 	expectSuccess(t, args)
 }
 
@@ -29,7 +30,7 @@ func TestMultipleStartAtArgsFail(t *testing.T) {
 	expectError(t, args)
 }
 
-func TestDaftStartDateFails(t *testing.T) {
+func TestInvalidStartDateFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["start_at"] = []string{"2000-14-28T00:02:02 +00:00"}
 	expectError(t, args)
@@ -51,6 +52,7 @@ func TestBadlyFormattedEndAtFails(t *testing.T) {
 
 func TestWellFormattedEndAtIsAllowed(t *testing.T) {
 	args := make(map[string][]string)
+	args["start_at"] = []string{"2000-01-26T00:02:02 +00:00"}
 	args["end_at"] = []string{"2000-02-02T00:02:02 +00:00"}
 	expectSuccess(t, args)
 }
@@ -218,6 +220,62 @@ func TestCollectWithLaterInternalParameterFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["collect"] = []string{"bar", "_baz"}
 	args["group_by"] = []string{"foo"}
+	expectError(t, args)
+}
+
+func TestDurationRequiresOtherParameters(t *testing.T) {
+	args := make(map[string][]string)
+	args["duration"] = []string{"3"}
+	expectError(t, args)
+}
+
+func TestDurationMustBePositiveInteger(t *testing.T) {
+	args := make(map[string][]string)
+	args["duration"] = []string{"0"}
+	args["period"] = []string{"day"}
+	expectError(t, args)
+
+	args["duration"] = []string{"3"}
+	expectSuccess(t, args)
+
+	args["duration"] = []string{"-3"}
+	args["period"] = []string{"day"}
+	expectError(t, args)
+}
+
+func TestDurationIsAValidNumber(t *testing.T) {
+	args := make(map[string][]string)
+	args["duration"] = []string{"not_a_number"}
+	args["period"] = []string{"day"}
+	expectError(t, args)
+}
+
+func TestPeriodAndDurationWithStartAtIsOkay(t *testing.T) {
+	args := make(map[string][]string)
+	args["duration"] = []string{"3"}
+	args["period"] = []string{"day"}
+	args["start_at"] = []string{"2000-02-02T00:00:00+00:00"}
+	expectSuccess(t, args)
+}
+
+func TestStartAtAloneFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["start_at"] = []string{"2000-02-02T00:00:00+00:00"}
+	expectError(t, args)
+}
+
+func TestEndAtAloneFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["end_at"] = []string{"2000-02-02T00:00:00+00:00"}
+	expectError(t, args)
+}
+
+func TestDurationWithStartAtAndEndAtFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["duration"] = []string{"3"}
+	args["period"] = []string{"day"}
+	args["start_at"] = []string{"2000-02-02T00:00:00+00:00"}
+	args["end_at"] = []string{"2000-02-09T00:00:00+00:00"}
 	expectError(t, args)
 }
 

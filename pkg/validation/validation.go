@@ -18,6 +18,8 @@ func ValidateRequestArgs(values map[string][]string, allowRawQueries bool) error
 		NewPositiveIntegerValidator("limit"),
 		NewGroupByValidator(),
 		NewCollectValidator(),
+		NewDurationValidator(),
+		NewPositiveIntegerValidator("duration"),
 	}
 
 	for _, v := range validators {
