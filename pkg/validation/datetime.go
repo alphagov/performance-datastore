@@ -10,7 +10,6 @@ type dateTimeValidator struct {
 }
 
 var (
-	// timePattern  = regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}`)
 	validLayouts = []string{
 		time.RFC3339,
 		"2006-01-02T15:04:05",
