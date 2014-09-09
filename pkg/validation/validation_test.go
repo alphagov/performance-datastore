@@ -316,7 +316,23 @@ func TestPeriodWithStartAtAndEndAtIsOkay(t *testing.T) {
 	args["period"] = []string{"week"}
 	args["start_at"] = []string{"2000-02-02T00:00:00+00:00"}
 	args["end_at"] = []string{"2000-02-09T00:00:00+00:00"}
-	expectSuccess(expectation{t: t, args: args})
+	expectSuccess(expectation{t: t, args: args, allowRawQueries: true})
+}
+
+func TestNoRawQueriesWithPeriodWithStartAtAndEndAtOnWednesdayFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["period"] = []string{"week"}
+	args["start_at"] = []string{"2000-02-02T00:00:00+00:00"}
+	args["end_at"] = []string{"2000-02-09T00:00:00+00:00"}
+	expectError(expectation{t: t, args: args, allowRawQueries: false})
+}
+
+func TestNoRawQueriesWithPeriodWithStartAtAndEndAtOnMondayIsOkay(t *testing.T) {
+	args := make(map[string][]string)
+	args["period"] = []string{"week"}
+	args["start_at"] = []string{"2000-02-07T00:00:00+00:00"}
+	args["end_at"] = []string{"2000-02-14T00:00:00+00:00"}
+	expectSuccess(expectation{t: t, args: args, allowRawQueries: false})
 }
 
 func TestNoRawQueriesMeansUseMidnight(t *testing.T) {

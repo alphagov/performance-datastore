@@ -27,6 +27,8 @@ func ValidateRequestArgs(values map[string][]string, allowRawQueries bool) error
 		validators = append(validators, NewMidnightValidator("start_at"))
 		validators = append(validators, NewMidnightValidator("end_at"))
 		validators = append(validators, NewTimespanValidator(7))
+		validators = append(validators, NewMondayValidator("start_at"))
+		validators = append(validators, NewMondayValidator("end_at"))
 	}
 
 	for _, v := range validators {

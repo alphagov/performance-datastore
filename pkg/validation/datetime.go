@@ -118,3 +118,23 @@ func (x *timespanValidator) Validate(args map[string][]string) (err error, res i
 	return
 }
 
+type mondayValidator struct {
+	name string
+}
+
+func NewMondayValidator(name string) Validator {
+	return &mondayValidator{name: name}
+}
+
+func (x *mondayValidator) Validate(args map[string][]string) (err error, res interface{}) {
+	_, date := NewDateTimeValidator(x.name).Validate(args)
+	_, period := NewPeriodValidator().Validate(args)
+
+	if (period != nil && period == "week") &&
+		date != nil &&
+		date.(*time.Time).UTC().Weekday() != time.Monday {
+		return fmt.Errorf("%v must be a Monday but was %v", x.name, date), nil
+	}
+
+	return
+}
