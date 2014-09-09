@@ -223,6 +223,23 @@ func TestCollectWithLaterInternalParameterFails(t *testing.T) {
 	expectError(t, args)
 }
 
+func TestCollectHasAWhitelistOfMethods(t *testing.T) {
+	args := make(map[string][]string)
+	args["group_by"] = []string{"foo"}
+
+	for _, method := range []string{"sum", "count", "set", "mean"} {
+		args["collect"] = []string{fmt.Sprintf("field:%s", method)}
+		expectSuccess(t, args)
+	}
+}
+
+func TestCollectWithInvalidMethodFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["group_by"] = []string{"foo"}
+	args["collect"] = []string{"field:foobar"}
+	expectError(t, args)
+}
+
 func TestDurationRequiresOtherParameters(t *testing.T) {
 	args := make(map[string][]string)
 	args["duration"] = []string{"3"}
