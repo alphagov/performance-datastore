@@ -375,6 +375,22 @@ func TestNoRawQueriesForAnHourPeriodAreAllowed(t *testing.T) {
 	expectSuccess(expectation{t: t, args: args})
 }
 
+func TestNoRawQueriesWithMonthPeriodWithStartAtAndEndAtOnThirdFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["period"] = []string{"month"}
+	args["start_at"] = []string{"2000-02-03T00:00:00+00:00"}
+	args["end_at"] = []string{"2000-03-03T00:00:00+00:00"}
+	expectError(expectation{t: t, args: args, allowRawQueries: false})
+}
+
+func TestNoRawQueriesWithMonthPeriodWithStartAtAndEndAtOnFirstIsOkay(t *testing.T) {
+	args := make(map[string][]string)
+	args["period"] = []string{"month"}
+	args["start_at"] = []string{"2000-02-01T00:00:00+00:00"}
+	args["end_at"] = []string{"2000-03-01T00:00:00+00:00"}
+	expectSuccess(expectation{t: t, args: args, allowRawQueries: false})
+}
+
 func expectError(e expectation) {
 	if ValidateRequestArgs(e.args, e.allowRawQueries) == nil {
 		e.t.Errorf("%v should have failed", e.args)

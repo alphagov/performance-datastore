@@ -138,3 +138,24 @@ func (x *mondayValidator) Validate(args map[string][]string) (err error, res int
 
 	return
 }
+
+type monthValidator struct {
+	name string
+}
+
+func NewMonthValidator(name string) Validator {
+	return &monthValidator{name: name}
+}
+
+func (x *monthValidator) Validate(args map[string][]string) (err error, res interface{}) {
+	_, date := NewDateTimeValidator(x.name).Validate(args)
+	_, period := NewPeriodValidator().Validate(args)
+
+	if (period != nil && period == "month") &&
+		date != nil &&
+		date.(*time.Time).UTC().Day() != 1 {
+		return fmt.Errorf("%v must be a first of the month but was %v", x.name, date), nil
+	}
+
+	return
+}
