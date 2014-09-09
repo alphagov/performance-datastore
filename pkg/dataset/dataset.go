@@ -63,6 +63,10 @@ func (d DataSet) getMaxExpectedAge() (maxExpectedAge *int64) {
 	return
 }
 
+func (d DataSet) AllowRawQueries() bool {
+	return d.booleanValue("raw_queries_allowed")
+}
+
 func (d DataSet) Name() string {
 	return d.MetaData["name"].(string)
 }

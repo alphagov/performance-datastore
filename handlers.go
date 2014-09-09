@@ -6,6 +6,7 @@ import (
 	"github.com/go-martini/martini"
 	"github.com/jabley/performance-datastore/pkg/config_api"
 	"github.com/jabley/performance-datastore/pkg/dataset"
+	"github.com/jabley/performance-datastore/pkg/validation"
 	"labix.org/v2/mgo"
 	"net/http"
 	"sync"
@@ -151,8 +152,8 @@ func fetch(metaData dataset.DataSetMetaData, w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if validationResult := validateRequest(r, dataSet); validationResult.invalid {
-		logAndReturn(w, fmt.Sprintf(validationResult.message, dataSet.Name()))
+	if err := validateRequest(r, dataSet); err != nil {
+		logAndReturn(w, fmt.Sprintf(err.Error(), dataSet.Name()))
 		return
 	}
 
@@ -184,13 +185,12 @@ func parseQuery(r *http.Request) dataset.Query {
 	return dataset.Query{}
 }
 
-func validateRequest(r *http.Request, dataSet dataset.DataSet) (v ValidationResult) {
-	// look at r.URL.Query()x
-	return
+func validateRequest(r *http.Request, dataSet dataset.DataSet) error {
+	// look at r.URL.Query()
+	return validation.ValidateRequestArgs(r.URL.Query(), dataSet.AllowRawQueries())
 }
 
 type ValidationResult struct {
-	invalid bool
 	message string
 }
 
