@@ -1,9 +1,16 @@
 package validation
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
+
+type expectation struct {
+	t               *testing.T
+	args            map[string][]string
+	allowRawQueries bool
+}
 
 func TestDateTimeString(t *testing.T) {
 	if !isValidDateTime("2012-06-03T13:26:00") {
@@ -14,26 +21,26 @@ func TestDateTimeString(t *testing.T) {
 func TestBadlyFormattedStartAtFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["start_at"] = []string{"i am not a time"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestWellFormattedStartAtIsOkay(t *testing.T) {
 	args := make(map[string][]string)
 	args["start_at"] = []string{"2000-02-02T00:02:02 +00:00"}
 	args["end_at"] = []string{"2000-02-09T00:02:02 +00:00"}
-	expectSuccess(t, args)
+	expectSuccess(expectation{t: t, args: args})
 }
 
 func TestMultipleStartAtArgsFail(t *testing.T) {
 	args := make(map[string][]string)
 	args["start_at"] = []string{"2000-02-02T00:02:02 +00:00", "2000-03-02T00:02:02 +00:00"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestInvalidStartDateFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["start_at"] = []string{"2000-14-28T00:02:02 +00:00"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestDateParsing(t *testing.T) {
@@ -47,92 +54,92 @@ func TestDateParsing(t *testing.T) {
 func TestBadlyFormattedEndAtFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["end_at"] = []string{"i am not a time"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestWellFormattedEndAtIsAllowed(t *testing.T) {
 	args := make(map[string][]string)
 	args["start_at"] = []string{"2000-01-26T00:02:02 +00:00"}
 	args["end_at"] = []string{"2000-02-02T00:02:02 +00:00"}
-	expectSuccess(t, args)
+	expectSuccess(expectation{t: t, args: args})
 }
 
 func TestFilterByQueryRequiresFieldAndName(t *testing.T) {
 	args := make(map[string][]string)
 	args["filter_by"] = []string{"bar"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestWellFormattedFilterByIsOkay(t *testing.T) {
 	args := make(map[string][]string)
 	args["filter_by"] = []string{"foo:bar"}
-	expectSuccess(t, args)
+	expectSuccess(expectation{t: t, args: args})
 }
 
 func TestAllFilterByArgsAreValidated(t *testing.T) {
 	args := make(map[string][]string)
 	args["filter_by"] = []string{"foo:bar", "baz"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestFilterByFieldNameIsValidated(t *testing.T) {
 	args := make(map[string][]string)
 	args["filter_by"] = []string{"with-hyphen:bar"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestFilterByFieldNameCannotLookLikeMongoThing(t *testing.T) {
 	args := make(map[string][]string)
 	args["filter_by"] = []string{"$foo:bar"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestSortByAscendingIsOkay(t *testing.T) {
 	args := make(map[string][]string)
 	args["sort_by"] = []string{"foo:ascending"}
-	expectSuccess(t, args)
+	expectSuccess(expectation{t: t, args: args})
 }
 
 func TestSortByDescendingIsOkay(t *testing.T) {
 	args := make(map[string][]string)
 	args["sort_by"] = []string{"foo:descending"}
-	expectSuccess(t, args)
+	expectSuccess(expectation{t: t, args: args})
 }
 
 func TestSortByAnythingElseFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["sort_by"] = []string{"foo:random"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 	args["sort_by"] = []string{"lulz"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestSortByRequiresAValidFieldName(t *testing.T) {
 	args := make(map[string][]string)
 	args["sort_by"] = []string{"with-hyphen:ascending"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestLimitShouldBeAPositiveInteger(t *testing.T) {
 	args := make(map[string][]string)
 	args["limit"] = []string{"not_a_number"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 	args["limit"] = []string{"-3"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 	args["limit"] = []string{"3"}
-	expectSuccess(t, args)
+	expectSuccess(expectation{t: t, args: args})
 }
 
 func TestGroupByOnInternalNameFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["group_by"] = []string{"_internal_field"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestGroupByOnInvalidFieldNameFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["group_by"] = []string{"with-hyphen"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestSortByWithPeriodOnlyFails(t *testing.T) {
@@ -141,7 +148,7 @@ func TestSortByWithPeriodOnlyFails(t *testing.T) {
 	args["period"] = []string{"week"}
 	args["start_at"] = []string{"2012-11-12T00:00:00Z"}
 	args["end_at"] = []string{"2012-12-03T00:00:00Z"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestSortByWithPeriodAndGroupByIsOkay(t *testing.T) {
@@ -151,76 +158,76 @@ func TestSortByWithPeriodAndGroupByIsOkay(t *testing.T) {
 	args["group_by"] = []string{"foobar"}
 	args["start_at"] = []string{"2012-11-12T00:00:00Z"}
 	args["end_at"] = []string{"2012-12-03T00:00:00Z"}
-	expectSuccess(t, args)
+	expectSuccess(expectation{t: t, args: args})
 }
 
 func TestCollectWithoutGroupByFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["collect"] = []string{"bar"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestCollectAndGroupByIsOkay(t *testing.T) {
 	args := make(map[string][]string)
 	args["collect"] = []string{"bar"}
 	args["group_by"] = []string{"foo"}
-	expectSuccess(t, args)
+	expectSuccess(expectation{t: t, args: args})
 }
 
 func TestCollectIsOkay(t *testing.T) {
 	args := make(map[string][]string)
 	args["collect"] = []string{"a_aAbBzZ_"}
 	args["group_by"] = []string{"foo"}
-	expectSuccess(t, args)
+	expectSuccess(expectation{t: t, args: args})
 }
 
 func TestCollectWithFunctionFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["collect"] = []string{"something);while(1){myBadFunction()}"}
 	args["group_by"] = []string{"foo"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestCollectWithAHyphenFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["collect"] = []string{"with-hyphen"}
 	args["group_by"] = []string{"foo"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestCollectWithAMongoThingFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["collect"] = []string{"$foo"}
 	args["group_by"] = []string{"foo"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestCollectOnSameFieldAsGroupByFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["collect"] = []string{"foo"}
 	args["group_by"] = []string{"foo"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestCollectOnInternalFieldFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["collect"] = []string{"_foo"}
 	args["group_by"] = []string{"foo"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestMultipleCollectIsOkay(t *testing.T) {
 	args := make(map[string][]string)
 	args["collect"] = []string{"bar", "baz"}
 	args["group_by"] = []string{"foo"}
-	expectSuccess(t, args)
+	expectSuccess(expectation{t: t, args: args})
 }
 
 func TestCollectWithLaterInternalParameterFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["collect"] = []string{"bar", "_baz"}
 	args["group_by"] = []string{"foo"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestCollectHasAWhitelistOfMethods(t *testing.T) {
@@ -229,7 +236,7 @@ func TestCollectHasAWhitelistOfMethods(t *testing.T) {
 
 	for _, method := range []string{"sum", "count", "set", "mean"} {
 		args["collect"] = []string{fmt.Sprintf("field:%s", method)}
-		expectSuccess(t, args)
+		expectSuccess(expectation{t: t, args: args})
 	}
 }
 
@@ -237,34 +244,34 @@ func TestCollectWithInvalidMethodFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["group_by"] = []string{"foo"}
 	args["collect"] = []string{"field:foobar"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestDurationRequiresOtherParameters(t *testing.T) {
 	args := make(map[string][]string)
 	args["duration"] = []string{"3"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestDurationMustBePositiveInteger(t *testing.T) {
 	args := make(map[string][]string)
 	args["duration"] = []string{"0"}
 	args["period"] = []string{"day"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 
 	args["duration"] = []string{"3"}
-	expectSuccess(t, args)
+	expectSuccess(expectation{t: t, args: args})
 
 	args["duration"] = []string{"-3"}
 	args["period"] = []string{"day"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestDurationIsAValidNumber(t *testing.T) {
 	args := make(map[string][]string)
 	args["duration"] = []string{"not_a_number"}
 	args["period"] = []string{"day"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestPeriodAndDurationWithStartAtIsOkay(t *testing.T) {
@@ -272,19 +279,19 @@ func TestPeriodAndDurationWithStartAtIsOkay(t *testing.T) {
 	args["duration"] = []string{"3"}
 	args["period"] = []string{"day"}
 	args["start_at"] = []string{"2000-02-02T00:00:00+00:00"}
-	expectSuccess(t, args)
+	expectSuccess(expectation{t: t, args: args})
 }
 
 func TestStartAtAloneFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["start_at"] = []string{"2000-02-02T00:00:00+00:00"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestEndAtAloneFails(t *testing.T) {
 	args := make(map[string][]string)
 	args["end_at"] = []string{"2000-02-02T00:00:00+00:00"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestDurationWithStartAtAndEndAtFails(t *testing.T) {
@@ -293,7 +300,7 @@ func TestDurationWithStartAtAndEndAtFails(t *testing.T) {
 	args["period"] = []string{"day"}
 	args["start_at"] = []string{"2000-02-02T00:00:00+00:00"}
 	args["end_at"] = []string{"2000-02-09T00:00:00+00:00"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
 func TestPeriodHasALimitedVocabulary(t *testing.T) {
@@ -301,17 +308,65 @@ func TestPeriodHasALimitedVocabulary(t *testing.T) {
 	args["duration"] = []string{"3"}
 	args["period"] = []string{"fortnight"}
 	args["start_at"] = []string{"2000-02-02T00:00:00+00:00"}
-	expectError(t, args)
+	expectError(expectation{t: t, args: args})
 }
 
-func expectError(t *testing.T, args map[string][]string) {
-	if ValidateRequestArgs(args, false) == nil {
-		t.Errorf("%v should have failed", args)
+func TestPeriodWithStartAtAndEndAtIsOkay(t *testing.T) {
+	args := make(map[string][]string)
+	args["period"] = []string{"week"}
+	args["start_at"] = []string{"2000-02-02T00:00:00+00:00"}
+	args["end_at"] = []string{"2000-02-09T00:00:00+00:00"}
+	expectSuccess(expectation{t: t, args: args})
+}
+
+func TestNoRawQueriesMeansUseMidnight(t *testing.T) {
+	args := make(map[string][]string)
+	args["period"] = []string{"day"}
+	args["start_at"] = []string{"2000-02-02T00:00:00+00:00"}
+	args["end_at"] = []string{"2000-02-09T00:00:00+00:00"}
+	expectSuccess(expectation{t: t, args: args})
+}
+
+func TestNoRawQueriesForADayPeriodWithHourseInTheMiddleOfTheDayFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["period"] = []string{"day"}
+	args["start_at"] = []string{"2000-02-02T12:00:00+00:00"}
+	args["end_at"] = []string{"2000-02-09T13:00:00+00:00"}
+	expectError(expectation{t: t, args: args})
+}
+
+func TestNoRawQueriesForAnHourPeriodAllowsTimeInTheMiddleOfTheDay(t *testing.T) {
+	args := make(map[string][]string)
+	args["period"] = []string{"hour"}
+	args["start_at"] = []string{"2000-02-02T12:00:00+00:00"}
+	args["end_at"] = []string{"2000-02-09T13:00:00+00:00"}
+	expectSuccess(expectation{t: t, args: args})
+}
+
+func TestNoRawQueriesForADayPeriodLessThan7DaysFails(t *testing.T) {
+	args := make(map[string][]string)
+	args["period"] = []string{"day"}
+	args["start_at"] = []string{"2000-02-02T00:00:00+00:00"}
+	args["end_at"] = []string{"2000-02-08T00:00:00+00:00"}
+	expectError(expectation{t: t, args: args})
+}
+
+func TestNoRawQueriesForAnHourPeriodAreAllowed(t *testing.T) {
+	args := make(map[string][]string)
+	args["period"] = []string{"hour"}
+	args["start_at"] = []string{"2000-02-02T00:00:00+00:00"}
+	args["end_at"] = []string{"2000-02-08T00:00:00+00:00"}
+	expectSuccess(expectation{t: t, args: args})
+}
+
+func expectError(e expectation) {
+	if ValidateRequestArgs(e.args, e.allowRawQueries) == nil {
+		e.t.Errorf("%v should have failed", e.args)
 	}
 }
 
-func expectSuccess(t *testing.T, args map[string][]string) {
-	if err := ValidateRequestArgs(args, false); err != nil {
-		t.Errorf("%v should have been okay but was %v", args, err)
+func expectSuccess(e expectation) {
+	if err := ValidateRequestArgs(e.args, e.allowRawQueries); err != nil {
+		e.t.Errorf("%v should have been okay but was %v", e.args, err)
 	}
 }

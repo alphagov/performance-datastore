@@ -6,7 +6,7 @@ import (
 )
 
 type Validator interface {
-	Validate(args map[string][]string) error
+	Validate(args map[string][]string) (error, interface{})
 }
 
 func ValidateRequestArgs(values map[string][]string, allowRawQueries bool) error {
@@ -23,8 +23,14 @@ func ValidateRequestArgs(values map[string][]string, allowRawQueries bool) error
 		NewPeriodValidator(),
 	}
 
+	if !allowRawQueries {
+		validators = append(validators, NewMidnightValidator("start_at"))
+		validators = append(validators, NewMidnightValidator("end_at"))
+		validators = append(validators, NewTimespanValidator(7))
+	}
+
 	for _, v := range validators {
-		if err := v.Validate(values); err != nil {
+		if err, _ := v.Validate(values); err != nil {
 			return err
 		}
 	}
