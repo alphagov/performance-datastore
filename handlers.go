@@ -186,12 +186,7 @@ func parseQuery(r *http.Request) dataset.Query {
 }
 
 func validateRequest(r *http.Request, dataSet dataset.DataSet) error {
-	// look at r.URL.Query()
 	return validation.ValidateRequestArgs(r.URL.Query(), dataSet.AllowRawQueries())
-}
-
-type ValidationResult struct {
-	message string
 }
 
 func serialiseJSON(w http.ResponseWriter, status interface{}) {
