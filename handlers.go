@@ -139,7 +139,8 @@ func fetch(metaData dataset.DataSetMetaData, w http.ResponseWriter, r *http.Requ
 	if r.Method == "OPTIONS" {
 		// TODO Set allowed methods
 		w.Header().Set("Access-Control-Max-Age", "86400")
-		w.Header().Set("Access-Control-Allow-Headers", "Cache-Control")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Cache-Control, GOVUK-Request-Id, Request-Id")
 		return
 	}
 
