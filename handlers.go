@@ -101,15 +101,6 @@ func dataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 	serialiseJSON(w, status)
 }
 
-// GET|OPTIONS /:data_set_name
-func dataSetHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
-	metaData, err := config_api.DataSet(params["data_set_name"])
-	if err != nil {
-		panic(err)
-	}
-	fetch(metaData, w, r)
-}
-
 // GET|OPTIONS /data/:data_group/data_type
 func dataTypeHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
 	metaData, err := config_api.DataType(params["data_group"], params["data_type"])
