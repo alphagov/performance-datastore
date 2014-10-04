@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"encoding/json"
@@ -44,8 +44,8 @@ func getMgoSession() *mgo.Session {
 	return mgoSession.Copy()
 }
 
-// statusHandler is the basic healthcheck for the application
-func statusHandler(w http.ResponseWriter, r *http.Request) {
+// StatusHandler is the basic healthcheck for the application
+func StatusHandler(w http.ResponseWriter, r *http.Request) {
 	session := getMgoSession()
 	defer session.Close()
 
@@ -81,8 +81,8 @@ type DataSetStatus struct {
 	MaxAgeExpected   int       `json:"max-age-expected"`
 }
 
-// dataSetStatusHandler is basic healthcheck for all of the datasets
-func dataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
+// DataSetStatusHandler is basic healthcheck for all of the datasets
+func DataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 	session := getMgoSession()
 	defer session.Close()
 
@@ -102,7 +102,7 @@ func dataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET|OPTIONS /data/:data_group/data_type
-func dataTypeHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
+func DataTypeHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
 	metaData, err := config_api.DataType(params["data_group"], params["data_type"])
 	if err != nil {
 		panic(err)

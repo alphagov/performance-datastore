@@ -4,6 +4,7 @@ import (
 	"flag"
 	"github.com/alext/tablecloth"
 	"github.com/go-martini/martini"
+	"github.com/jabley/performance-datastore/pkg/handlers"
 	"log"
 	"net/http"
 	"os"
@@ -22,10 +23,10 @@ func main() {
 
 	flag.Parse()
 	m := martini.Classic()
-	m.Get("/_status", statusHandler)
-	m.Get("/_status/data-sets", dataSetStatusHandler)
-	m.Get("/data/:data_group/:data_type", dataTypeHandler)
-	m.Options("/data/:data_group/:data_type", dataTypeHandler)
+	m.Get("/_status", handlers.StatusHandler)
+	m.Get("/_status/data-sets", handlers.DataSetStatusHandler)
+	m.Get("/data/:data_group/:data_type", handlers.DataTypeHandler)
+	m.Options("/data/:data_group/:data_type", handlers.DataTypeHandler)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
