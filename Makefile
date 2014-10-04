@@ -26,7 +26,7 @@ fmt:
 	gofmt -w=1 pkg
 
 test:
-	go run third_party.go test -v \
+	go run third_party.go test \
 		$(REPO_PATH) $(REPO_PATH)/pkg/dataset/ \
 		$(REPO_PATH)/pkg/json_response/ \
 		$(REPO_PATH)/pkg/validation/
