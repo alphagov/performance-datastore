@@ -7,7 +7,7 @@ import (
 	"github.com/jabley/performance-datastore/pkg/config_api"
 	"github.com/jabley/performance-datastore/pkg/dataset"
 	"github.com/jabley/performance-datastore/pkg/validation"
-	"labix.org/v2/mgo"
+	"gopkg.in/mgo.v2"
 	"net/http"
 	"sync"
 	"time"
