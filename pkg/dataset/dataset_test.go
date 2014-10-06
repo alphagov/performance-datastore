@@ -61,3 +61,38 @@ func TestQueryableFlagWithNonBoolValueIsFalsy(t *testing.T) {
 		t.Error("Default value for non-boolean queryable field should be false")
 	}
 }
+
+func TestCappedSize(t *testing.T) {
+	var metaData DataSetMetaData
+	metaData = make(map[string]interface{})
+	metaData["capped_size"] = 12345
+	dataSet := DataSet{nil, metaData}
+	cappedSize := dataSet.CappedSize()
+	if cappedSize == nil {
+		t.Fatalf("CappedSize should not be nil")
+	}
+	if int(12345) != *cappedSize {
+		t.Error("CappedSize should not be nil")
+	}
+}
+
+func TestNoCappedSizeIsNil(t *testing.T) {
+	var metaData DataSetMetaData
+	metaData = make(map[string]interface{})
+	dataSet := DataSet{nil, metaData}
+	cappedSize := dataSet.CappedSize()
+	if cappedSize != nil {
+		t.Fatalf("CappedSize should be nil if not explicitly set")
+	}
+}
+
+func TestNonIntCappedSizeIsTreatedAsNil(t *testing.T) {
+	var metaData DataSetMetaData
+	metaData = make(map[string]interface{})
+	dataSet := DataSet{nil, metaData}
+	metaData["capped_size"] = "not-an-int"
+	cappedSize := dataSet.CappedSize()
+	if cappedSize != nil {
+		t.Fatalf("CappedSize should be nil if not explicitly set")
+	}
+}

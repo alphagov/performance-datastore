@@ -6,9 +6,11 @@ import (
 	"github.com/go-martini/martini"
 	"github.com/jabley/performance-datastore/pkg/config_api"
 	"github.com/jabley/performance-datastore/pkg/dataset"
+	"github.com/jabley/performance-datastore/pkg/json_response"
 	"github.com/jabley/performance-datastore/pkg/validation"
 	"gopkg.in/mgo.v2"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -28,6 +30,8 @@ type WarningResponse struct {
 }
 
 // StatusHandler is the basic healthcheck for the application
+//
+// GET /_status
 func StatusHandler(w http.ResponseWriter, r *http.Request) {
 	session := getMgoSession()
 	defer session.Close()
@@ -65,6 +69,8 @@ type DataSetStatus struct {
 }
 
 // DataSetStatusHandler is basic healthcheck for all of the datasets
+//
+// GET /_status/data-sets
 func DataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 	session := getMgoSession()
 	defer session.Close()
@@ -84,6 +90,8 @@ func DataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 	serialiseJSON(w, status)
 }
 
+// DataTypeHandler is responsible for serving data type meta data
+//
 // GET|OPTIONS /data/:data_group/data_type
 func DataTypeHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
 	metaData, err := config_api.DataType(params["data_group"], params["data_type"])
@@ -93,6 +101,42 @@ func DataTypeHandler(w http.ResponseWriter, r *http.Request, params martini.Para
 	fetch(metaData, w, r)
 }
 
+// CreateHandler is responsible for creating data
+//
+// POST /data/:data_group/:data_type
+func CreateHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
+	// with statsd.timer('write.route.data.{data_group}.{data_type}'.format(
+	//         data_group=data_group,
+	//         data_type=data_type)):
+
+	metaData, err := config_api.DataType(params["data_group"], params["data_type"])
+	if err != nil {
+		panic(err)
+	}
+
+	dataSet := dataset.DataSet{nil, metaData}
+
+	err = validateAuthorization(r, dataSet)
+	if err != nil {
+		logAndReturn(w, err.Error())
+		return
+	}
+
+	data, err := json_response.ParseArray(r.Body)
+
+	if err != nil {
+		logAndReturn(w, "400")
+		return
+	}
+
+	errors := dataSet.Append(data)
+
+	if len(errors) > 0 {
+		serialiseJSON(w, statusResponse{"error", "All the errors", 400})
+	} else {
+		serialiseJSON(w, statusResponse{"ok", "", 0})
+	}
+}
 func logAndReturn(w http.ResponseWriter, message string) {
 	w.WriteHeader(http.StatusNotFound)
 	setStatusHeaders(w)
@@ -169,6 +213,31 @@ func serialiseJSON(w http.ResponseWriter, status interface{}) {
 	if err := encoder.Encode(status); err != nil {
 		panic(err)
 	}
+}
+
+func validateAuthorization(r *http.Request, dataSet dataset.DataSet) (err error) {
+	authorization := r.Header.Get("Authorization")
+
+	if len(authorization) == 0 {
+		return fmt.Errorf("Expected header of form: Authorization: Bearer <token>")
+	}
+
+	token, valid := extractBearerToken(dataSet, authorization)
+
+	if !valid {
+		return fmt.Errorf("Unauthorized: Invalid bearer token '%s' for '%s'", token, dataSet.Name())
+	}
+	return
+}
+
+func extractBearerToken(dataSet dataset.DataSet, authorization string) (token string, ok bool) {
+	const prefix = "Bearer "
+	if !strings.HasPrefix(authorization, prefix) {
+		return "", false
+	}
+
+	token = authorization[len(prefix):]
+	return token, token == dataSet.BearerToken()
 }
 
 func checkFreshness(

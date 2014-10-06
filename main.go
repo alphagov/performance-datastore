@@ -27,6 +27,7 @@ func main() {
 	m.Get("/_status/data-sets", handlers.DataSetStatusHandler)
 	m.Get("/data/:data_group/:data_type", handlers.DataTypeHandler)
 	m.Options("/data/:data_group/:data_type", handlers.DataTypeHandler)
+	m.Post("/data/:data_group/:data_type", handlers.CreateHandler)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)

@@ -1,6 +1,7 @@
 package dataset
 
 import (
+	"fmt"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"time"
@@ -36,6 +37,11 @@ func (d DataSet) IsStale() bool {
 	return false
 }
 
+func (d DataSet) Append(data []interface{}) []error {
+	d.createIfNecessary()
+	return d.store(data)
+}
+
 func (d DataSet) Execute(query Query) (interface{}, error) {
 	return nil, nil
 }
@@ -65,6 +71,14 @@ func (d DataSet) getMaxExpectedAge() (maxExpectedAge *int64) {
 
 func (d DataSet) AllowRawQueries() bool {
 	return d.booleanValue("raw_queries_allowed")
+}
+
+func (d DataSet) BearerToken() string {
+	return d.stringValue("bearer_token")
+}
+
+func (d DataSet) CappedSize() *int {
+	return d.intValue("capped_size")
 }
 
 func (d DataSet) Name() string {
@@ -99,6 +113,15 @@ func isStalenessAppropriate(maxAge *int64, lastUpdated *time.Time) bool {
 	return maxAge != nil && lastUpdated != nil
 }
 
+func (d DataSet) createIfNecessary() {
+	if !d.collectionExists(d.Name()) {
+		err := d.createCollection()
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
 func (d DataSet) booleanValue(field string) (result bool) {
 	value, ok := d.MetaData[field].(bool)
 
@@ -107,4 +130,124 @@ func (d DataSet) booleanValue(field string) (result bool) {
 	}
 
 	return
+}
+
+func (d DataSet) intValue(field string) (result *int) {
+	value, ok := d.MetaData[field]
+
+	if ok {
+		cast, ok := value.(int)
+		if ok {
+			result = &cast
+		}
+	}
+
+	return
+}
+
+func (d DataSet) stringValue(field string) (result string) {
+	value, ok := d.MetaData[field].(string)
+
+	if ok {
+		result = value
+	}
+
+	return
+}
+
+func (d DataSet) store(data []interface{}) (errors []error) {
+
+	d.validateAgainstSchema(&data, &errors)
+	d.processAutoIds(&data, &errors)
+	d.parseTimestamps(&data, &errors)
+	d.validateRecords(&data, &errors)
+
+	if len(errors) > 0 {
+		return errors
+	}
+
+	d.addPeriodData(&data)
+
+	for _, record := range data {
+		d.saveRecord(record)
+	}
+
+	return
+}
+
+func (d DataSet) validateAgainstSchema(data *[]interface{}, errors *[]error) {
+	schema, ok := d.MetaData["schema"].(string)
+
+	if ok {
+		for _, record := range *data {
+			e := validateRecord(record, schema)
+			if e != nil {
+				*errors = append(*errors, e)
+			}
+		}
+	}
+}
+
+func (d DataSet) addPeriodData(data *[]interface{}) {
+
+}
+
+func (d DataSet) validateRecords(data *[]interface{}, errors *[]error) {
+
+}
+
+func (d DataSet) saveRecord(record interface{}) {
+
+}
+
+func (d DataSet) parseTimestamps(data *[]interface{}, errors *[]error) {
+
+}
+
+func (d DataSet) processAutoIds(data *[]interface{}, errors *[]error) {
+	values, ok := d.MetaData["auto_ids"]
+
+	if ok {
+		autoIds, ok := values.([]string)
+		if !ok {
+			*errors = append(*errors, fmt.Errorf("Unable to read auto_ids from %s", d.Name()))
+		} else {
+			addAutoIds(data, autoIds, errors)
+		}
+	}
+}
+
+func validateRecord(record interface{}, schema string) error {
+	return nil
+}
+
+func addAutoIds(data *[]interface{}, autoIds []string, errors *[]error) {
+
+}
+
+func (d DataSet) collectionExists(name string) bool {
+	names, err := d.Storage.DB("backdrop").CollectionNames()
+
+	if err != nil {
+		panic(err)
+	}
+
+	for _, n := range names {
+		if n == name {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (d DataSet) createCollection() error {
+	info := &mgo.CollectionInfo{}
+	if d.CappedSize() != nil {
+		info.MaxBytes = *d.CappedSize()
+		info.Capped = true
+	}
+
+	// TODO would probably like some indices on the collection? _timestamp, for instance?
+	return d.Storage.DB("backdrop").C(d.Name()).Create(info)
 }
