@@ -18,7 +18,9 @@ func main() {
 	}
 
 	var (
-		port = flag.Int("port", 8080, "Port that the server should listen on")
+		port         = flag.Int("port", 8080, "Port that the server should listen on")
+		databaseName = flag.String("dbname", "backdrop", "Name of the mongodb database")
+		mongoURL     = flag.String("mongoURL", "localhost", "MongoDB connection URL")
 	)
 
 	flag.Parse()
@@ -31,6 +33,8 @@ func main() {
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
+
+	handlers.DataSetStorage = handlers.NewMongoStorage(*mongoURL, *databaseName)
 
 	go serve(":"+strconv.Itoa(*port), m, wg)
 	wg.Wait()

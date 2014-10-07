@@ -8,14 +8,11 @@ import (
 	"github.com/jabley/performance-datastore/pkg/dataset"
 	"github.com/jabley/performance-datastore/pkg/json_response"
 	"github.com/jabley/performance-datastore/pkg/validation"
-	"gopkg.in/mgo.v2"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 )
-
-// TODO: define an abstraction around persistence so that mgo doesn't leak into here?
 
 type statusResponse struct {
 	// Field names should be public, so that encoding/json can see them
@@ -29,21 +26,18 @@ type WarningResponse struct {
 	Warning string `json:"warning"`
 }
 
+var DataSetStorage dataset.DataSetStorage
+
 // StatusHandler is the basic healthcheck for the application
 //
 // GET /_status
 func StatusHandler(w http.ResponseWriter, r *http.Request) {
-	session := getMgoSession()
-	defer session.Close()
-
-	session.SetMode(mgo.Eventual, true)
-
 	status := statusResponse{
 		Status:  "ok",
 		Message: "database seems fine",
 	}
 
-	if addrs := session.LiveServers(); len(addrs) == 0 {
+	if !DataSetStorage.Alive() {
 		status.Status = "error"
 		status.Message = "cannot connect to database"
 		w.WriteHeader(http.StatusInternalServerError)
@@ -72,18 +66,13 @@ type DataSetStatus struct {
 //
 // GET /_status/data-sets
 func DataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
-	session := getMgoSession()
-	defer session.Close()
-
-	session.SetMode(mgo.Eventual, true)
-
 	datasets, err := config_api.ListDataSets()
 
 	if err != nil {
 		panic(err)
 	}
 
-	failing := collectStaleness(datasets, session)
+	failing := collectStaleness(datasets)
 	status := summariseStaleness(failing)
 
 	setStatusHeaders(w)
@@ -149,12 +138,7 @@ func fetch(metaData dataset.DataSetMetaData, w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	session := getMgoSession()
-	defer session.Close()
-
-	session.SetMode(mgo.Eventual, true)
-
-	dataSet := dataset.DataSet{session, metaData}
+	dataSet := dataset.DataSet{DataSetStorage, metaData}
 
 	// Is the data set queryable?
 	if !dataSet.IsQueryable() {
@@ -256,14 +240,14 @@ func setStatusHeaders(w http.ResponseWriter) {
 	w.Header().Set("Cache-Control", "none")
 }
 
-func collectStaleness(datasets []interface{}, session *mgo.Session) (failing chan DataSetStatus) {
+func collectStaleness(datasets []interface{}) (failing chan DataSetStatus) {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(datasets))
 	failing = make(chan DataSetStatus, len(datasets))
 
 	for _, m := range datasets {
 		metaData := m.(dataset.DataSetMetaData)
-		dataSet := dataset.DataSet{session, metaData}
+		dataSet := dataset.DataSet{DataSetStorage, metaData}
 		go checkFreshness(dataSet, failing, wg)
 	}
 

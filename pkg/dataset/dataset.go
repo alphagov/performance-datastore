@@ -2,15 +2,20 @@ package dataset
 
 import (
 	"fmt"
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
 	"time"
 )
 
 type DataSetMetaData map[string]interface{}
 
+type DataSetStorage interface {
+	Create(name string, cappedSize *int) error
+	Exists(name string) bool
+	Alive() bool
+	LastUpdated(name string) *time.Time
+}
+
 type DataSet struct {
-	Storage  *mgo.Session
+	Storage  DataSetStorage
 	MetaData DataSetMetaData
 }
 
@@ -86,24 +91,7 @@ func (d DataSet) Name() string {
 }
 
 func (d DataSet) getLastUpdated() (t *time.Time) {
-	var lastUpdated bson.M
-	d.Storage.SetMode(mgo.Monotonic, true)
-
-	coll := d.Storage.DB("backdrop").C(d.Name())
-	err := coll.Find(nil).Sort("-_updated_at").One(&lastUpdated)
-
-	if err != nil {
-		panic(err)
-	}
-
-	t = nil
-
-	value, isTime := lastUpdated["_updated_at"].(time.Time)
-
-	if isTime {
-		t = &value
-	}
-	return
+	return d.Storage.LastUpdated(d.Name())
 }
 
 // isStalenessAppropriate returns false if there is no limit on
@@ -226,28 +214,9 @@ func addAutoIds(data *[]interface{}, autoIds []string, errors *[]error) {
 }
 
 func (d DataSet) collectionExists(name string) bool {
-	names, err := d.Storage.DB("backdrop").CollectionNames()
-
-	if err != nil {
-		panic(err)
-	}
-
-	for _, n := range names {
-		if n == name {
-			return true
-		}
-	}
-
-	return false
+	return d.Storage.Exists(name)
 }
 
 func (d DataSet) createCollection() error {
-	info := &mgo.CollectionInfo{}
-	if d.CappedSize() != nil {
-		info.MaxBytes = *d.CappedSize()
-		info.Capped = true
-	}
-
-	// TODO would probably like some indices on the collection? _timestamp, for instance?
-	return d.Storage.DB("backdrop").C(d.Name()).Create(info)
+	return d.Storage.Create(d.Name(), d.CappedSize())
 }
