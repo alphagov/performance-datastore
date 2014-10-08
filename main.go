@@ -24,18 +24,13 @@ func main() {
 	)
 
 	flag.Parse()
-	m := martini.Classic()
-	m.Get("/_status", handlers.StatusHandler)
-	m.Get("/_status/data-sets", handlers.DataSetStatusHandler)
-	m.Get("/data/:data_group/:data_type", handlers.DataTypeHandler)
-	m.Options("/data/:data_group/:data_type", handlers.DataTypeHandler)
-	m.Post("/data/:data_group/:data_type", handlers.CreateHandler)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
 	handlers.DataSetStorage = handlers.NewMongoStorage(*mongoURL, *databaseName)
 
+	m := registerRoutes()
 	go serve(":"+strconv.Itoa(*port), m, wg)
 	wg.Wait()
 }
@@ -43,4 +38,15 @@ func main() {
 func serve(addr string, m http.Handler, wg *sync.WaitGroup) {
 	defer wg.Done()
 	log.Fatal(tablecloth.ListenAndServe(addr, m))
+}
+
+func registerRoutes() http.Handler {
+	m := martini.Classic()
+	m.Get("/_status", handlers.StatusHandler)
+	m.Get("/_status/data-sets", handlers.DataSetStatusHandler)
+	m.Get("/data/:data_group/:data_type", handlers.DataTypeHandler)
+	m.Options("/data/:data_group/:data_type", handlers.DataTypeHandler)
+	m.Post("/data/:data_group/:data_type", handlers.CreateHandler)
+	m.Put("/data/:data_group/:data_type", handlers.UpdateHandler)
+	return m
 }
