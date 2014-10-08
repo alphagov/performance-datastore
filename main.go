@@ -1,14 +1,12 @@
 package main
 
 import (
-	"flag"
 	"github.com/alext/tablecloth"
 	"github.com/go-martini/martini"
 	"github.com/jabley/performance-datastore/pkg/handlers"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"sync"
 )
 
@@ -18,20 +16,18 @@ func main() {
 	}
 
 	var (
-		port         = flag.Int("port", 8080, "Port that the server should listen on")
-		databaseName = flag.String("dbname", "backdrop", "Name of the mongodb database")
-		mongoURL     = flag.String("mongoURL", "localhost", "MongoDB connection URL")
+		port         = getEnvDefault("HTTP_PORT", "8080")
+		databaseName = getEnvDefault("DBNAME", "backdrop")
+		mongoURL     = getEnvDefault("MONGO_URL", "localhost")
 	)
-
-	flag.Parse()
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
-	handlers.DataSetStorage = handlers.NewMongoStorage(*mongoURL, *databaseName)
+	handlers.DataSetStorage = handlers.NewMongoStorage(mongoURL, databaseName)
 
 	m := registerRoutes()
-	go serve(":"+strconv.Itoa(*port), m, wg)
+	go serve(":"+port, m, wg)
 	wg.Wait()
 }
 
@@ -49,4 +45,13 @@ func registerRoutes() http.Handler {
 	m.Post("/data/:data_group/:data_type", handlers.CreateHandler)
 	m.Put("/data/:data_group/:data_type", handlers.UpdateHandler)
 	return m
+}
+
+func getEnvDefault(key string, defaultVal string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultVal
+	}
+
+	return val
 }
