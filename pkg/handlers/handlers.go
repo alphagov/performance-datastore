@@ -1,24 +1,30 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/go-martini/martini"
 	"github.com/jabley/performance-datastore/pkg/config_api"
 	"github.com/jabley/performance-datastore/pkg/dataset"
 	"github.com/jabley/performance-datastore/pkg/json_response"
 	"github.com/jabley/performance-datastore/pkg/validation"
+	"github.com/quipo/statsd"
+	"gopkg.in/unrolled/render.v1"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 )
 
-type statusResponse struct {
-	// Field names should be public, so that encoding/json can see them
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Code    int    `json:"code"`
+type ErrorInfo struct {
+	Id     *string `json:"id"`
+	Status *string `json:"status"`
+	Code   *string `json:"code"`
+	Title  *string `json:"title"`
+	Detail *string `json:"detail"`
+}
+
+type errorResponse struct {
+	Errors []*ErrorInfo `json:"errors"`
 }
 
 type WarningResponse struct {
@@ -26,25 +32,28 @@ type WarningResponse struct {
 	Warning string `json:"warning"`
 }
 
-var DataSetStorage dataset.DataSetStorage
+var (
+	// DataSetStorage is the application global for talking to persistent storage
+	// It is like this to allow test implementations to be injected.
+	DataSetStorage dataset.DataSetStorage
+	renderer       = render.New(render.Options{})
+	statsdClient   = newStatsDClient("localhost:8125", "datastore.")
+)
 
 // StatusHandler is the basic healthcheck for the application
 //
 // GET /_status
 func StatusHandler(w http.ResponseWriter, r *http.Request) {
-	status := statusResponse{
-		Status:  "ok",
-		Message: "database seems fine",
-	}
+	setStatusHeaders(w)
 
 	if !DataSetStorage.Alive() {
-		status.Status = "error"
-		status.Message = "cannot connect to database"
-		w.WriteHeader(http.StatusInternalServerError)
+		renderError(w, http.StatusInternalServerError, "cannot connect to database")
+	} else {
+		renderer.JSON(w, http.StatusOK, map[string]string{
+			"status":  "OK",
+			"message": "database seems fine",
+		})
 	}
-
-	setStatusHeaders(w)
-	serialiseJSON(w, status)
 }
 
 type dataSetStatusResponse struct {
@@ -76,17 +85,21 @@ func DataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 	status := summariseStaleness(failing)
 
 	setStatusHeaders(w)
-	serialiseJSON(w, status)
+	renderer.JSON(w, http.StatusOK, &status)
 }
 
 // DataTypeHandler is responsible for serving data type meta data
 //
 // GET|OPTIONS /data/:data_group/data_type
 func DataTypeHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
-	metaData, err := config_api.DataType(params["data_group"], params["data_type"])
+	metaData, err := fetchDataMetaData(params["data_group"], params["data_type"])
 	if err != nil {
 		panic(err)
 	}
+
+	dataStart := time.Now()
+	defer statsDTiming(fmt.Sprintf("data.%s.%s", params["data_group"], params["data_type"]),
+		dataStart, time.Now())
 	fetch(metaData, w, r)
 }
 
@@ -94,11 +107,7 @@ func DataTypeHandler(w http.ResponseWriter, r *http.Request, params martini.Para
 //
 // POST /data/:data_group/:data_type
 func CreateHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
-	// with statsd.timer('write.route.data.{data_group}.{data_type}'.format(
-	//         data_group=data_group,
-	//         data_type=data_type)):
-
-	metaData, err := config_api.DataType(params["data_group"], params["data_type"])
+	metaData, err := fetchDataMetaData(params["data_group"], params["data_type"])
 	if err != nil {
 		panic(err)
 	}
@@ -107,23 +116,23 @@ func CreateHandler(w http.ResponseWriter, r *http.Request, params martini.Params
 
 	err = validateAuthorization(r, dataSet)
 	if err != nil {
-		logAndReturn(w, err.Error())
+		renderError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
 	data, err := json_response.ParseArray(r.Body)
 
 	if err != nil {
-		logAndReturn(w, "400")
+		renderError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	errors := dataSet.Append(data)
 
 	if len(errors) > 0 {
-		serialiseJSON(w, statusResponse{"error", "All the errors", 400})
+		renderError(w, http.StatusBadRequest, "All the errors")
 	} else {
-		serialiseJSON(w, statusResponse{"ok", "", 0})
+		renderer.JSON(w, http.StatusOK, map[string]string{"status": "OK"})
 	}
 }
 
@@ -134,15 +143,9 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request, params martini.Params
 
 }
 
-func logAndReturn(w http.ResponseWriter, message string) {
-	w.WriteHeader(http.StatusNotFound)
-	setStatusHeaders(w)
-	serialiseJSON(w, statusResponse{"error", message, 0})
-}
-
 func fetch(metaData dataset.DataSetMetaData, w http.ResponseWriter, r *http.Request) {
 	if metaData == nil {
-		logAndReturn(w, "data_set not found")
+		renderError(w, http.StatusNotFound, "data_set not found")
 		return
 	}
 
@@ -150,7 +153,7 @@ func fetch(metaData dataset.DataSetMetaData, w http.ResponseWriter, r *http.Requ
 
 	// Is the data set queryable?
 	if !dataSet.IsQueryable() {
-		logAndReturn(w, fmt.Sprintf("data_set %s not found", dataSet.Name()))
+		renderError(w, http.StatusNotFound, fmt.Sprintf("data_set %s not found", dataSet.Name()))
 		return
 	}
 
@@ -164,7 +167,7 @@ func fetch(metaData dataset.DataSetMetaData, w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := validateRequest(r, dataSet); err != nil {
-		logAndReturn(w, fmt.Sprintf(err.Error(), dataSet.Name()))
+		renderError(w, http.StatusNotFound, fmt.Sprintf(err.Error(), dataSet.Name()))
 		return
 	}
 
@@ -172,7 +175,7 @@ func fetch(metaData dataset.DataSetMetaData, w http.ResponseWriter, r *http.Requ
 	data, err := dataSet.Execute(query)
 
 	if err != nil {
-		logAndReturn(w, fmt.Sprintf("Invalid collect function", dataSet.Name()))
+		renderError(w, http.StatusBadRequest, fmt.Sprintf("Invalid collect function", dataSet.Name()))
 		return
 	}
 
@@ -189,7 +192,7 @@ func fetch(metaData dataset.DataSetMetaData, w http.ResponseWriter, r *http.Requ
 		body = data
 	}
 
-	serialiseJSON(w, body)
+	renderer.JSON(w, http.StatusOK, &body)
 }
 
 func parseQuery(r *http.Request) dataset.Query {
@@ -198,13 +201,6 @@ func parseQuery(r *http.Request) dataset.Query {
 
 func validateRequest(r *http.Request, dataSet dataset.DataSet) error {
 	return validation.ValidateRequestArgs(r.URL.Query(), dataSet.AllowRawQueries())
-}
-
-func serialiseJSON(w http.ResponseWriter, status interface{}) {
-	encoder := json.NewEncoder(w)
-	if err := encoder.Encode(status); err != nil {
-		panic(err)
-	}
 }
 
 func validateAuthorization(r *http.Request, dataSet dataset.DataSet) (err error) {
@@ -297,4 +293,27 @@ func pluraliseDataSets(failures []DataSetStatus) string {
 	} else {
 		return "data-set is"
 	}
+}
+
+func renderError(w http.ResponseWriter, status int, errorString string) {
+	renderer.JSON(w, status, &errorResponse{Errors: []*ErrorInfo{&ErrorInfo{Detail: &errorString}}})
+}
+
+func newStatsDClient(host, prefix string) *statsd.StatsdClient {
+	statsdClient := statsd.NewStatsdClient(host, prefix)
+	statsdClient.CreateSocket()
+
+	return statsdClient
+}
+
+func statsDTiming(label string, start, end time.Time) {
+	statsdClient.Timing("time."+label,
+		int64(end.Sub(start)/time.Millisecond))
+}
+
+func fetchDataMetaData(dataGroup string, dataType string) (map[string]interface{}, error) {
+	dataTypeStart := time.Now()
+	defer statsDTiming(fmt.Sprintf("config.%s.%s", dataGroup, dataType),
+		dataTypeStart, time.Now())
+	return config_api.DataType(dataGroup, dataType)
 }
