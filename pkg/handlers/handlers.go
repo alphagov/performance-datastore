@@ -126,6 +126,14 @@ func CreateHandler(w http.ResponseWriter, r *http.Request, params martini.Params
 		serialiseJSON(w, statusResponse{"ok", "", 0})
 	}
 }
+
+// UpdateHandler is responsible for updating data
+//
+// PUT /data/:data_group/:data_type
+func UpdateHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
+
+}
+
 func logAndReturn(w http.ResponseWriter, message string) {
 	w.WriteHeader(http.StatusNotFound)
 	setStatusHeaders(w)
