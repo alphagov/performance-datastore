@@ -11,7 +11,6 @@ import (
 	"gopkg.in/unrolled/render.v1"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -39,54 +38,6 @@ var (
 	renderer       = render.New(render.Options{})
 	statsdClient   = newStatsDClient("localhost:8125", "datastore.")
 )
-
-// StatusHandler is the basic healthcheck for the application
-//
-// GET /_status
-func StatusHandler(w http.ResponseWriter, r *http.Request) {
-	setStatusHeaders(w)
-
-	if !DataSetStorage.Alive() {
-		renderError(w, http.StatusInternalServerError, "cannot connect to database")
-	} else {
-		renderer.JSON(w, http.StatusOK, map[string]string{
-			"status":  "OK",
-			"message": "database seems fine",
-		})
-	}
-}
-
-type dataSetStatusResponse struct {
-	// Field names should be public, so that encoding/json can see them
-	Status   string `json:"status"`
-	Message  string `json:"message"`
-	Code     int    `json:"code"`
-	DataSets []DataSetStatus
-}
-
-type DataSetStatus struct {
-	Name             string    `json:"name"`
-	SecondsOutOfDate int       `json:"seconds-out-of-date"`
-	LastUpdated      time.Time `json:"last-updated"`
-	MaxAgeExpected   int       `json:"max-age-expected"`
-}
-
-// DataSetStatusHandler is basic healthcheck for all of the datasets
-//
-// GET /_status/data-sets
-func DataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
-	datasets, err := config_api.ListDataSets()
-
-	if err != nil {
-		panic(err)
-	}
-
-	failing := collectStaleness(datasets)
-	status := summariseStaleness(failing)
-
-	setStatusHeaders(w)
-	renderer.JSON(w, http.StatusOK, &status)
-}
 
 // DataTypeHandler is responsible for serving data type meta data
 //
@@ -226,73 +177,6 @@ func extractBearerToken(dataSet dataset.DataSet, authorization string) (token st
 
 	token = authorization[len(prefix):]
 	return token, token == dataSet.BearerToken()
-}
-
-func checkFreshness(
-	dataSet dataset.DataSet,
-	failing chan DataSetStatus,
-	wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	if dataSet.IsStale() && dataSet.IsPublished() {
-		failing <- DataSetStatus{dataSet.Name(), 0, time.Now(), 0}
-	}
-}
-
-func setStatusHeaders(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "none")
-}
-
-func collectStaleness(datasets []interface{}) (failing chan DataSetStatus) {
-	wg := &sync.WaitGroup{}
-	wg.Add(len(datasets))
-	failing = make(chan DataSetStatus, len(datasets))
-
-	for _, m := range datasets {
-		metaData := m.(dataset.DataSetMetaData)
-		dataSet := dataset.DataSet{DataSetStorage, metaData}
-		go checkFreshness(dataSet, failing, wg)
-	}
-
-	wg.Wait()
-
-	return
-}
-
-func summariseStaleness(failing chan DataSetStatus) dataSetStatusResponse {
-	allGood := true
-
-	message := "All data-sets are in date"
-
-	var failures []DataSetStatus
-
-	for failure := range failing {
-		allGood = false
-		failures = append(failures, failure)
-	}
-
-	if allGood {
-		return dataSetStatusResponse{
-			Status:  "ok",
-			Message: message,
-		}
-	} else {
-		message = fmt.Sprintf("%d %s out of date", len(failures), pluraliseDataSets(failures))
-		return dataSetStatusResponse{
-			Status:   "not okay",
-			Message:  message,
-			DataSets: failures,
-		}
-	}
-}
-
-func pluraliseDataSets(failures []DataSetStatus) string {
-	if len(failures) > 1 {
-		return "data-sets are"
-	} else {
-		return "data-set is"
-	}
 }
 
 func renderError(w http.ResponseWriter, status int, errorString string) {
