@@ -2,7 +2,6 @@ package config_api
 
 import (
 	"encoding/json"
-	// "github.com/jabley/performance-datastore/pkg/json_response"
 	"github.com/jabley/performance-datastore/pkg/request"
 )
 
@@ -62,6 +61,12 @@ func (c *defaultClient) DataType(group string, dataType string) (*DataSetMetaDat
 	// if err != nil {
 	// 	return nil, err
 	// }
+
+	// 	if res != nil && len(res) > 0 {
+	// 		return res[0].(map[string]interface{}), nil
+	// 	}
+	// 	return nil, fmt.Errorf("No such data set")
+	// }
 	return nil, nil
 }
 
@@ -69,26 +74,8 @@ func (c *defaultClient) ListDataSets() ([]DataSetMetaData, error) {
 	return nil, nil
 }
 
-// func DataSet(dataSetName string) (map[string]interface{}, error) {
-// 	return getJSONObject("/data-sets/" + dataSetName)
-// }
 
-// func DataType(dataGroup string, dataType string) (map[string]interface{}, error) {
-// 	res, err := getJSONArray("/data-sets?data-group=" + dataGroup + "&data-type=" + dataType)
 
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	if res != nil && len(res) > 0 {
-// 		return res[0].(map[string]interface{}), nil
-// 	}
-// 	return nil, fmt.Errorf("No such data set")
-// }
-
-// func ListDataSets() ([]interface{}, error) {
-// 	return getJSONArray("/data-sets")
-// }
 
 func (c *defaultClient) get(path string) (body []byte, err error) {
 	response, err := request.NewRequest(c.baseURL+path, c.bearerToken)
@@ -105,23 +92,3 @@ func (c *defaultClient) get(path string) (body []byte, err error) {
 
 	return body, nil
 }
-
-// func getJSONArray(path string) ([]interface{}, error) {
-// 	res, err := get(path)
-
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return json_response.ParseArray(res.Body)
-// }
-
-// func getJSONObject(path string) (map[string]interface{}, error) {
-// 	res, err := get(path)
-
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return json_response.ParseObject(res.Body)
-// }
