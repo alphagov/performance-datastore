@@ -93,6 +93,17 @@ var _ = Describe("Config API", func() {
 				Expect(metaData.Published).To(Equal(true))
 				Expect(metaData.Schema).ToNot(BeNil())
 			})
+
+			It("gracefully handles failure in remote API", func() {
+				server.RouteToHandler("GET", "/data-sets/deposit_foreign_marriage_journey",
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/data-sets/deposit_foreign_marriage_journey"),
+						ghttp.RespondWith(http.StatusInternalServerError, ``)))
+
+				metaData, err := client.DataSet("deposit_foreign_marriage_journey")
+				Expect(metaData).To(BeNil())
+				Expect(err).ToNot(BeNil())
+			})
 		})
 	})
 
