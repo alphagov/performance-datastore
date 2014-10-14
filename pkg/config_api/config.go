@@ -1,102 +1,133 @@
 package config_api
 
 import (
-	"fmt"
-	"github.com/cenkalti/backoff"
-	"github.com/jabley/performance-datastore/pkg/json_response"
-	"net/http"
-	"time"
+	"encoding/json"
+	// "github.com/jabley/performance-datastore/pkg/json_response"
+	"github.com/jabley/performance-datastore/pkg/request"
 )
 
 var (
-	baseURL = "https://stagecraft.dev"
-	client  = &http.Client{}
-	token   = "A Bearer Token"
+	baseURL = "https://stagecraft.production.performance.service.gov.uk"
+	token   = "2ac9707dcdbc3333d82204860d05035ca381432a413e933c5c4e5b2d28f4d16c"
 	version = "1.0"
 )
 
-func DataSet(dataSetName string) (map[string]interface{}, error) {
-	return getJSONObject("/data-sets/" + dataSetName)
+type DataSetMetaData struct {
+	Name            string          `json:"name"`
+	DataGroup       string          `json:"data_group"`
+	DataType        string          `json:"data_type"`
+	AllowRawQueries bool            `json:"raw_queries_allowed"`
+	BearerToken     string          `json:"bearer_token"`
+	UploadFormat    string          `json:"upload_format"`
+	UploadFilters   []string        `json:"upload_filters"`
+	AutoIds         []string        `json:"auto_ids"`
+	Queryable       bool            `json:"queryable"`
+	Realtime        bool            `json:"realtime"`
+	CappedSize      int64           `json:"capped_size"`
+	MaxExpectedAge  int64           `json:"max_age_expected"`
+	Published       bool            `json:"published"`
+	Schema          json.RawMessage `json:"schema"`
 }
 
-func DataType(dataGroup string, dataType string) (map[string]interface{}, error) {
-	res, err := getJSONArray("/data-sets?data-group=" + dataGroup + "&data-type=" + dataType)
+type Client interface {
+	DataSet(name string) (*DataSetMetaData, error)
+	DataType(group string, dataType string) (*DataSetMetaData, error)
+	ListDataSets() ([]DataSetMetaData, error)
+}
+
+type defaultClient struct {
+	baseURL     string
+	bearerToken string
+}
+
+func NewClient(baseURL string, bearerToken string) Client {
+	return &defaultClient{baseURL, bearerToken}
+}
+
+func (c *defaultClient) DataSet(name string) (*DataSetMetaData, error) {
+	res, err := c.get("/data-sets/" + name)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if res != nil && len(res) > 0 {
-		return res[0].(map[string]interface{}), nil
-	}
-	return nil, fmt.Errorf("No such data set")
-}
+	d := DataSetMetaData{}
 
-func ListDataSets() ([]interface{}, error) {
-	return getJSONArray("/data-sets")
-}
-
-func get(path string) (res *http.Response, err error) {
-	URL := fmt.Sprintf("%s%s", baseURL, path)
-	req, err := http.NewRequest("GET", URL, nil)
+	err = json.Unmarshal(res, &d)
 
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("User-Agent", fmt.Sprintf("Performance-Platform-Client/%s", version))
+	return &d, nil
+}
 
-	res, err = tryGet(req)
+func (c *defaultClient) DataType(group string, dataType string) (*DataSetMetaData, error) {
+	// res, err := c.get("/data-sets?data-group=" + group + "&data-type=" + dataType)
+
+	// if err != nil {
+	// 	return nil, err
+	// }
+	return nil, nil
+}
+
+func (c *defaultClient) ListDataSets() ([]DataSetMetaData, error) {
+	return nil, nil
+}
+
+// func DataSet(dataSetName string) (map[string]interface{}, error) {
+// 	return getJSONObject("/data-sets/" + dataSetName)
+// }
+
+// func DataType(dataGroup string, dataType string) (map[string]interface{}, error) {
+// 	res, err := getJSONArray("/data-sets?data-group=" + dataGroup + "&data-type=" + dataType)
+
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	if res != nil && len(res) > 0 {
+// 		return res[0].(map[string]interface{}), nil
+// 	}
+// 	return nil, fmt.Errorf("No such data set")
+// }
+
+// func ListDataSets() ([]interface{}, error) {
+// 	return getJSONArray("/data-sets")
+// }
+
+func (c *defaultClient) get(path string) (body []byte, err error) {
+	response, err := request.NewRequest(c.baseURL+path, c.bearerToken)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return res, nil
-}
-
-func tryGet(req *http.Request) (res *http.Response, err error) {
-	operation := func() error {
-		res, httpErr := client.Do(req)
-		if httpErr != nil {
-			return httpErr
-		}
-		switch res.StatusCode {
-		case 502, 503:
-			return fmt.Errorf("Server unavailable")
-		}
-		return nil
-	}
-
-	expo := backoff.NewExponentialBackOff()
-	expo.MaxElapsedTime = (5 * time.Second)
-	err = backoff.Retry(operation, expo)
-	if err != nil {
-		// Operation has failed.
-		return nil, err
-	}
-
-	return
-}
-
-func getJSONArray(path string) ([]interface{}, error) {
-	res, err := get(path)
+	body, err = request.ReadResponseBody(response)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return json_response.ParseArray(res.Body)
+	return body, nil
 }
 
-func getJSONObject(path string) (map[string]interface{}, error) {
-	res, err := get(path)
+// func getJSONArray(path string) ([]interface{}, error) {
+// 	res, err := get(path)
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	return json_response.ParseObject(res.Body)
-}
+// 	return json_response.ParseArray(res.Body)
+// }
+
+// func getJSONObject(path string) (map[string]interface{}, error) {
+// 	res, err := get(path)
+
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return json_response.ParseObject(res.Body)
+// }

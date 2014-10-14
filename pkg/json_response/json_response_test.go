@@ -19,7 +19,7 @@ func TestParsingArray(t *testing.T) {
 	arr, err := ParseArray(ioutil.NopCloser(strings.NewReader(jsonText)))
 
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	assertIntEqual(t, 5, len(arr), "should have 5 elements")
@@ -32,7 +32,7 @@ func TestParsingObjectAsArray(t *testing.T) {
 	_, err := ParseArray(ioutil.NopCloser(strings.NewReader(jsonText)))
 
 	if err == nil {
-		t.Error("Should have failed trying to parse an object as an array")
+		t.Fatal("Should have failed trying to parse an object as an array")
 	}
 }
 
@@ -42,7 +42,7 @@ func TestParsingObject(t *testing.T) {
 `
 	obj, err := ParseObject(ioutil.NopCloser(strings.NewReader(jsonText)))
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	assertStringEqual(t, "Ed", obj["Name"].(string))
@@ -61,18 +61,18 @@ func TestParsingArrayAsObject(t *testing.T) {
 	_, err := ParseObject(ioutil.NopCloser(strings.NewReader(jsonText)))
 
 	if err == nil {
-		t.Error("Should have failed trying to parse an array as an object")
+		t.Fatal("Should have failed trying to parse an array as an object")
 	}
 }
 
 func assertIntEqual(t *testing.T, expected int, actual int, message ...interface{}) {
 	if expected != actual {
-		t.Error("expected:", expected, "\nactual:", actual, "\n", message)
+		t.Fatal("expected:", expected, "\nactual:", actual, "\n", message)
 	}
 }
 
 func assertStringEqual(t *testing.T, expected string, actual string, message ...interface{}) {
 	if expected != actual {
-		t.Error("expected:", expected, "\nactual:", actual, "\n", message)
+		t.Fatal("expected:", expected, "\nactual:", actual, "\n", message)
 	}
 }
