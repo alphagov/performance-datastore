@@ -52,7 +52,8 @@ var (
 func DataTypeHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
 	metaData, err := fetchDataMetaData(params["data_group"], params["data_type"])
 	if err != nil {
-		panic(err)
+		renderError(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
 	dataStart := time.Now()
@@ -67,7 +68,8 @@ func DataTypeHandler(w http.ResponseWriter, r *http.Request, params martini.Para
 func CreateHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
 	metaData, err := fetchDataMetaData(params["data_group"], params["data_type"])
 	if err != nil {
-		panic(err)
+		renderError(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
 	dataSet := dataset.DataSet{nil, *metaData}
