@@ -23,3 +23,7 @@ backend APIs etc.
 # TODO
 
 - [ ] Look at using http://godoc.org/code.google.com/p/go.net/context
+- [ ] Implement Write API as per https://github.com/alphagov/backdrop
+- [ ] Implement Read API as per new ideas
+- [ ] Add Write API support for fanning out data (RabbitMQ, notifications etc)
+- [ ] Add support for PostgreSQL
