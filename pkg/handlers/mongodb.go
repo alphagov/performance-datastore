@@ -33,13 +33,13 @@ func NewMongoStorage(URL string, databaseName string) dataset.DataSetStorage {
 	return &MongoDataSetStorage{URL, databaseName}
 }
 
-func (m *MongoDataSetStorage) Create(name string, cappedSize *int) error {
+func (m *MongoDataSetStorage) Create(name string, cappedSize int64) error {
 	session := getMgoSession(m.URL)
 	defer session.Close()
 
 	info := &mgo.CollectionInfo{}
-	if cappedSize != nil {
-		info.MaxBytes = *cappedSize
+	if cappedSize != 0 {
+		info.MaxBytes = int(cappedSize)
 		info.Capped = true
 	}
 

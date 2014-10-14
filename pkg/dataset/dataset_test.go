@@ -1,12 +1,12 @@
 package dataset
 
 import (
+	"github.com/jabley/performance-datastore/pkg/config_api"
 	"testing"
 )
 
 func TestPublishedDefaultValue(t *testing.T) {
-	var metaData DataSetMetaData
-	metaData = make(map[string]interface{})
+	metaData := config_api.DataSetMetaData{}
 	dataSet := DataSet{nil, metaData}
 	if dataSet.IsPublished() {
 		t.Error("Default value for isPublished should be false")
@@ -14,28 +14,16 @@ func TestPublishedDefaultValue(t *testing.T) {
 }
 
 func TestPublishedFlagIsRead(t *testing.T) {
-	var metaData DataSetMetaData
-	metaData = make(map[string]interface{})
-	metaData["published"] = true
+	metaData := config_api.DataSetMetaData{}
+	metaData.Published = true
 	dataSet := DataSet{nil, metaData}
 	if !dataSet.IsPublished() {
 		t.Error("Published field was not read")
 	}
 }
 
-func TestPublishedFlagWithNonBoolValueIsFalsy(t *testing.T) {
-	var metaData DataSetMetaData
-	metaData = make(map[string]interface{})
-	metaData["published"] = "not-boolean"
-	dataSet := DataSet{nil, metaData}
-	if dataSet.IsPublished() {
-		t.Error("Default value for non-boolean published field should be false")
-	}
-}
-
 func TestQueryableDefaultValue(t *testing.T) {
-	var metaData DataSetMetaData
-	metaData = make(map[string]interface{})
+	metaData := config_api.DataSetMetaData{}
 	dataSet := DataSet{nil, metaData}
 	if dataSet.IsQueryable() {
 		t.Error("Default value for isQueryable should be false")
@@ -43,56 +31,29 @@ func TestQueryableDefaultValue(t *testing.T) {
 }
 
 func TestQueryableFlagIsRead(t *testing.T) {
-	var metaData DataSetMetaData
-	metaData = make(map[string]interface{})
-	metaData["queryable"] = true
+	metaData := config_api.DataSetMetaData{}
+	metaData.Queryable = true
 	dataSet := DataSet{nil, metaData}
 	if !dataSet.IsQueryable() {
 		t.Error("Queryable field was not read")
 	}
 }
 
-func TestQueryableFlagWithNonBoolValueIsFalsy(t *testing.T) {
-	var metaData DataSetMetaData
-	metaData = make(map[string]interface{})
-	metaData["queryable"] = "not-boolean"
-	dataSet := DataSet{nil, metaData}
-	if dataSet.IsQueryable() {
-		t.Error("Default value for non-boolean queryable field should be false")
-	}
-}
-
 func TestCappedSize(t *testing.T) {
-	var metaData DataSetMetaData
-	metaData = make(map[string]interface{})
-	metaData["capped_size"] = 12345
+	metaData := config_api.DataSetMetaData{}
+	metaData.CappedSize = 12345
 	dataSet := DataSet{nil, metaData}
 	cappedSize := dataSet.CappedSize()
-	if cappedSize == nil {
-		t.Fatalf("CappedSize should not be nil")
-	}
-	if int(12345) != *cappedSize {
-		t.Error("CappedSize should not be nil")
+	if int64(12345) != cappedSize {
+		t.Errorf("Expected <%v> but was <%v>", 12345, cappedSize)
 	}
 }
 
 func TestNoCappedSizeIsNil(t *testing.T) {
-	var metaData DataSetMetaData
-	metaData = make(map[string]interface{})
+	metaData := config_api.DataSetMetaData{}
 	dataSet := DataSet{nil, metaData}
 	cappedSize := dataSet.CappedSize()
-	if cappedSize != nil {
-		t.Fatalf("CappedSize should be nil if not explicitly set")
-	}
-}
-
-func TestNonIntCappedSizeIsTreatedAsNil(t *testing.T) {
-	var metaData DataSetMetaData
-	metaData = make(map[string]interface{})
-	dataSet := DataSet{nil, metaData}
-	metaData["capped_size"] = "not-an-int"
-	cappedSize := dataSet.CappedSize()
-	if cappedSize != nil {
-		t.Fatalf("CappedSize should be nil if not explicitly set")
+	if cappedSize != 0 {
+		t.Errorf("Expected <%v> but was <%v>", 0, cappedSize)
 	}
 }

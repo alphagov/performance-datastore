@@ -36,7 +36,7 @@ type DataSetStatus struct {
 //
 // GET /_status/data-sets
 func DataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
-	datasets, err := config_api.ListDataSets()
+	datasets, err := config_api.NewClient("", "").ListDataSets()
 
 	if err != nil {
 		panic(err)
@@ -65,13 +65,12 @@ func checkFreshness(
 	}
 }
 
-func collectStaleness(datasets []interface{}) (failing chan DataSetStatus) {
+func collectStaleness(datasets []config_api.DataSetMetaData) (failing chan DataSetStatus) {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(datasets))
 	failing = make(chan DataSetStatus, len(datasets))
 
-	for _, m := range datasets {
-		metaData := m.(dataset.DataSetMetaData)
+	for _, metaData := range datasets {
 		dataSet := dataset.DataSet{DataSetStorage, metaData}
 		go checkFreshness(dataSet, failing, wg)
 	}
@@ -103,10 +102,9 @@ func summariseStaleness(failing chan DataSetStatus) *ErrorInfo {
 	} else {
 		message = fmt.Sprintf("%d %s out of date", len(failures), pluraliseDataSets(failures))
 
-		status := "not okay"
 		return &ErrorInfo{
-			Status: &status,
-			Detail: &message,
+			Status: "not okay",
+			Detail: message,
 			// Other: failures,
 		}
 	}

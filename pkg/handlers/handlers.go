@@ -15,11 +15,14 @@ import (
 )
 
 type ErrorInfo struct {
-	Id     *string `json:"id"`
-	Status *string `json:"status"`
-	Code   *string `json:"code"`
-	Title  *string `json:"title"`
-	Detail *string `json:"detail"`
+	Id     string   `json:"id,omitempty"`
+	HREF   string   `json:"href,omitempty"`
+	Status string   `json:"status,omitempty"`
+	Code   string   `json:"code,omitempty"`
+	Title  string   `json:"title,omitempty"`
+	Detail string   `json:"detail,omitempty"`
+	Links  []string `json:"links,omitempty"`
+	Path   string   `json:"omitempty"`
 }
 
 type errorResponse struct {
@@ -63,7 +66,7 @@ func CreateHandler(w http.ResponseWriter, r *http.Request, params martini.Params
 		panic(err)
 	}
 
-	dataSet := dataset.DataSet{nil, metaData}
+	dataSet := dataset.DataSet{nil, *metaData}
 
 	err = validateAuthorization(r, dataSet)
 	if err != nil {
@@ -94,13 +97,13 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request, params martini.Params
 
 }
 
-func fetch(metaData dataset.DataSetMetaData, w http.ResponseWriter, r *http.Request) {
+func fetch(metaData *config_api.DataSetMetaData, w http.ResponseWriter, r *http.Request) {
 	if metaData == nil {
 		renderError(w, http.StatusNotFound, "data_set not found")
 		return
 	}
 
-	dataSet := dataset.DataSet{DataSetStorage, metaData}
+	dataSet := dataset.DataSet{DataSetStorage, *metaData}
 
 	// Is the data set queryable?
 	if !dataSet.IsQueryable() {
@@ -180,7 +183,7 @@ func extractBearerToken(dataSet dataset.DataSet, authorization string) (token st
 }
 
 func renderError(w http.ResponseWriter, status int, errorString string) {
-	renderer.JSON(w, status, &errorResponse{Errors: []*ErrorInfo{&ErrorInfo{Detail: &errorString}}})
+	renderer.JSON(w, status, &errorResponse{Errors: []*ErrorInfo{&ErrorInfo{Detail: errorString}}})
 }
 
 func newStatsDClient(host, prefix string) *statsd.StatsdClient {
@@ -195,9 +198,9 @@ func statsDTiming(label string, start, end time.Time) {
 		int64(end.Sub(start)/time.Millisecond))
 }
 
-func fetchDataMetaData(dataGroup string, dataType string) (map[string]interface{}, error) {
+func fetchDataMetaData(dataGroup string, dataType string) (*config_api.DataSetMetaData, error) {
 	dataTypeStart := time.Now()
 	defer statsDTiming(fmt.Sprintf("config.%s.%s", dataGroup, dataType),
 		dataTypeStart, time.Now())
-	return config_api.DataType(dataGroup, dataType)
+	return config_api.NewClient("", "").DataType(dataGroup, dataType)
 }
