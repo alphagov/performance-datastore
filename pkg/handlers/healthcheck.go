@@ -66,6 +66,12 @@ func checkFreshness(
 }
 
 func collectStaleness(datasets []config_api.DataSetMetaData) (failing chan DataSetStatus) {
+	if len(datasets) == 0 {
+		failing = make(chan DataSetStatus)
+		close(failing)
+		return
+	}
+
 	wg := &sync.WaitGroup{}
 	wg.Add(len(datasets))
 	failing = make(chan DataSetStatus, len(datasets))
