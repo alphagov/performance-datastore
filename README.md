@@ -22,4 +22,4 @@ backend APIs etc.
 
 # TODO
 
-[ ] Look at using http://godoc.org/code.google.com/p/go.net/context
+- [ ] Look at using http://godoc.org/code.google.com/p/go.net/context
