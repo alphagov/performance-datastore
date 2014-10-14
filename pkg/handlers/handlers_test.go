@@ -51,4 +51,20 @@ var _ = Describe("Healthcheck", func() {
 		Expect(err).To(BeNil())
 		Expect(body).To(Equal(`{"message":"database seems fine","status":"OK"}`))
 	})
+
+	It("responds with a status of ruh roh when the storage is down", func() {
+		testServer := testHandlerServer(handlers.StatusHandler)
+		defer testServer.Close()
+
+		handlers.DataSetStorage = NewTestDataSetStorage(false)
+
+		response, err := http.Get(testServer.URL)
+		Expect(err).To(BeNil())
+		Expect(response.StatusCode).To(Equal(http.StatusInternalServerError))
+
+		body, err := readResponseBody(response)
+		Expect(err).To(BeNil())
+		Expect(body).To(Equal(`{"errors":[{"detail":"cannot connect to database"}]}`))
+	})
+
 })

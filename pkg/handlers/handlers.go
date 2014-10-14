@@ -22,7 +22,7 @@ type ErrorInfo struct {
 	Title  string   `json:"title,omitempty"`
 	Detail string   `json:"detail,omitempty"`
 	Links  []string `json:"links,omitempty"`
-	Path   string   `json:"omitempty"`
+	Path   string   `json:"path,omitempty"`
 }
 
 type errorResponse struct {
