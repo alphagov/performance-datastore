@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/jabley/performance-datastore/pkg/config_api"
@@ -43,8 +44,8 @@ type TestConfigAPIClient struct {
 	DataSets []config_api.DataSetMetaData
 }
 
-func NewTestConfigAPIClient() config_api.Client {
-	return &TestConfigAPIClient{}
+func NewTestConfigAPIClient(err error) config_api.Client {
+	return &TestConfigAPIClient{err, nil, nil}
 }
 
 func (c *TestConfigAPIClient) DataSet(name string) (*config_api.DataSetMetaData, error) {
@@ -73,7 +74,7 @@ var _ = Describe("Healthcheck", func() {
 
 			body, err := readResponseBody(response)
 			Expect(err).To(BeNil())
-			Expect(body).To(Equal(`{"message":"database seems fine","status":"OK"}`))
+			Expect(body).To(Equal(`{"message":"database seems fine","status":"ok"}`))
 		})
 
 		It("responds with a status of ruh roh when the storage is down", func() {
@@ -102,7 +103,7 @@ var _ = Describe("Healthcheck", func() {
 			testServer := testHandlerServer(handlers.DataSetStatusHandler)
 			defer testServer.Close()
 
-			handlers.ConfigAPIClient = NewTestConfigAPIClient()
+			handlers.ConfigAPIClient = NewTestConfigAPIClient(nil)
 
 			response, err := http.Get(testServer.URL)
 			Expect(err).To(BeNil())
@@ -110,7 +111,22 @@ var _ = Describe("Healthcheck", func() {
 
 			body, err := readResponseBody(response)
 			Expect(err).To(BeNil())
-			Expect(body).To(Equal(`{"status":"OK"}`))
+			Expect(body).To(Equal(`{"status":"ok"}`))
+		})
+
+		It("responds with a status of ruh roh when unable to talk to the config API", func() {
+			testServer := testHandlerServer(handlers.DataSetStatusHandler)
+			defer testServer.Close()
+
+			handlers.ConfigAPIClient = NewTestConfigAPIClient(fmt.Errorf("Unable to connect to host"))
+
+			response, err := http.Get(testServer.URL)
+			Expect(err).To(BeNil())
+			Expect(response.StatusCode).To(Equal(http.StatusInternalServerError))
+
+			body, err := readResponseBody(response)
+			Expect(err).To(BeNil())
+			Expect(body).To(Equal(`{"errors":[{"detail":"Unable to connect to host"}]}`))
 		})
 
 	})

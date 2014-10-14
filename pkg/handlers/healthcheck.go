@@ -19,7 +19,7 @@ func StatusHandler(w http.ResponseWriter, r *http.Request) {
 		renderError(w, http.StatusInternalServerError, "cannot connect to database")
 	} else {
 		renderer.JSON(w, http.StatusOK, map[string]string{
-			"status":  "OK",
+			"status":  "ok",
 			"message": "database seems fine",
 		})
 	}
@@ -39,7 +39,8 @@ func DataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 	datasets, err := ConfigAPIClient.ListDataSets()
 
 	if err != nil {
-		panic(err)
+		renderError(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
 	failing := collectStaleness(datasets)
@@ -50,7 +51,7 @@ func DataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 	if status != nil {
 		renderer.JSON(w, http.StatusOK, status)
 	} else {
-		renderer.JSON(w, http.StatusOK, map[string]string{"status": "OK"})
+		renderer.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	}
 }
 
