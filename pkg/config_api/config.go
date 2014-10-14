@@ -71,11 +71,22 @@ func (c *defaultClient) DataType(group string, dataType string) (*DataSetMetaDat
 }
 
 func (c *defaultClient) ListDataSets() ([]DataSetMetaData, error) {
-	return nil, nil
+	res, err := c.get("/data-sets")
+
+	if err != nil {
+		return nil, err
+	}
+
+	d := []DataSetMetaData{}
+
+	err = json.Unmarshal(res, &d)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return d, nil
 }
-
-
-
 
 func (c *defaultClient) get(path string) (body []byte, err error) {
 	response, err := request.NewRequest(c.baseURL+path, c.bearerToken)
