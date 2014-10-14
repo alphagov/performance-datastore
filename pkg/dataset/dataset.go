@@ -35,7 +35,7 @@ func (d DataSet) IsStale() bool {
 	lastUpdated := d.getLastUpdated()
 
 	if isStalenessAppropriate(expectedMaxAge, lastUpdated) {
-		return now.Sub(*lastUpdated) > time.Duration(expectedMaxAge)
+		return now.Sub(*lastUpdated) > time.Duration(*expectedMaxAge)
 	}
 
 	return false
@@ -61,7 +61,7 @@ func (d DataSet) CacheDuration() int {
 	return 1800
 }
 
-func (d DataSet) getMaxExpectedAge() (maxExpectedAge int64) {
+func (d DataSet) getMaxExpectedAge() *int64 {
 	return d.MetaData.MaxExpectedAge
 }
 
@@ -88,8 +88,8 @@ func (d DataSet) getLastUpdated() (t *time.Time) {
 // isStalenessAppropriate returns false if there is no limit on
 // expected max age or the data set has never been updated, otherwise
 // returns true
-func isStalenessAppropriate(maxAge int64, lastUpdated *time.Time) bool {
-	return maxAge != 0 && lastUpdated != nil
+func isStalenessAppropriate(maxAge *int64, lastUpdated *time.Time) bool {
+	return maxAge != nil && lastUpdated != nil
 }
 
 func (d DataSet) createIfNecessary() {

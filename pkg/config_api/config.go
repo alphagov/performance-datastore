@@ -18,7 +18,7 @@ type DataSetMetaData struct {
 	Queryable       bool            `json:"queryable"`
 	Realtime        bool            `json:"realtime"`
 	CappedSize      int64           `json:"capped_size"`
-	MaxExpectedAge  int64           `json:"max_age_expected"`
+	MaxExpectedAge  *int64          `json:"max_age_expected"`
 	Published       bool            `json:"published"`
 	Schema          json.RawMessage `json:"schema"`
 }
