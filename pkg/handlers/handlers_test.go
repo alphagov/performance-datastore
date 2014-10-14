@@ -15,11 +15,12 @@ import (
 )
 
 type TestDataSetStorage struct {
-	IsAlive bool
+	alive       bool
+	lastUpdated *time.Time
 }
 
 func (mock *TestDataSetStorage) Alive() bool {
-	return mock.IsAlive
+	return mock.alive
 }
 
 func (mock *TestDataSetStorage) Create(name string, cappedSize int64) error {
@@ -31,11 +32,11 @@ func (mock *TestDataSetStorage) Exists(name string) bool {
 }
 
 func (mock *TestDataSetStorage) LastUpdated(name string) *time.Time {
-	return nil
+	return mock.lastUpdated
 }
 
-func NewTestDataSetStorage(alive bool) dataset.DataSetStorage {
-	return &TestDataSetStorage{alive}
+func NewTestDataSetStorage(alive bool, lastUpdated *time.Time) dataset.DataSetStorage {
+	return &TestDataSetStorage{alive, lastUpdated}
 }
 
 type TestConfigAPIClient struct {
@@ -44,8 +45,8 @@ type TestConfigAPIClient struct {
 	DataSets []config_api.DataSetMetaData
 }
 
-func NewTestConfigAPIClient(err error) config_api.Client {
-	return &TestConfigAPIClient{err, nil, nil}
+func NewTestConfigAPIClient(err error, datasets []config_api.DataSetMetaData) config_api.Client {
+	return &TestConfigAPIClient{err, nil, datasets}
 }
 
 func (c *TestConfigAPIClient) DataSet(name string) (*config_api.DataSetMetaData, error) {
@@ -66,7 +67,7 @@ var _ = Describe("Healthcheck", func() {
 			testServer := testHandlerServer(handlers.StatusHandler)
 			defer testServer.Close()
 
-			handlers.DataSetStorage = NewTestDataSetStorage(true)
+			handlers.DataSetStorage = NewTestDataSetStorage(true, nil)
 
 			response, err := http.Get(testServer.URL)
 			Expect(err).To(BeNil())
@@ -81,7 +82,7 @@ var _ = Describe("Healthcheck", func() {
 			testServer := testHandlerServer(handlers.StatusHandler)
 			defer testServer.Close()
 
-			handlers.DataSetStorage = NewTestDataSetStorage(false)
+			handlers.DataSetStorage = NewTestDataSetStorage(false, nil)
 
 			response, err := http.Get(testServer.URL)
 			Expect(err).To(BeNil())
@@ -95,15 +96,17 @@ var _ = Describe("Healthcheck", func() {
 	})
 
 	Describe("DataSets", func() {
+
 		BeforeEach(func() {
-			handlers.DataSetStorage = NewTestDataSetStorage(true)
+			roughly30DaysAgo := time.Now().Add(time.Duration(-24*30) * time.Hour)
+			handlers.DataSetStorage = NewTestDataSetStorage(true, &roughly30DaysAgo)
 		})
 
 		It("responds with a status of OK when there are no datasets", func() {
 			testServer := testHandlerServer(handlers.DataSetStatusHandler)
 			defer testServer.Close()
 
-			handlers.ConfigAPIClient = NewTestConfigAPIClient(nil)
+			handlers.ConfigAPIClient = NewTestConfigAPIClient(nil, nil)
 
 			response, err := http.Get(testServer.URL)
 			Expect(err).To(BeNil())
@@ -118,7 +121,7 @@ var _ = Describe("Healthcheck", func() {
 			testServer := testHandlerServer(handlers.DataSetStatusHandler)
 			defer testServer.Close()
 
-			handlers.ConfigAPIClient = NewTestConfigAPIClient(fmt.Errorf("Unable to connect to host"))
+			handlers.ConfigAPIClient = NewTestConfigAPIClient(fmt.Errorf("Unable to connect to host"), nil)
 
 			response, err := http.Get(testServer.URL)
 			Expect(err).To(BeNil())
@@ -129,5 +132,46 @@ var _ = Describe("Healthcheck", func() {
 			Expect(body).To(Equal(`{"errors":[{"detail":"Unable to connect to host"}]}`))
 		})
 
+		It("responds with a status of OK when there are no stale datasets", func() {
+			testServer := testHandlerServer(handlers.DataSetStatusHandler)
+			defer testServer.Close()
+
+			handlers.ConfigAPIClient = NewTestConfigAPIClient(nil,
+				[]config_api.DataSetMetaData{
+					config_api.DataSetMetaData{},
+					config_api.DataSetMetaData{}})
+
+			response, err := http.Get(testServer.URL)
+			Expect(err).To(BeNil())
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+			body, err := readResponseBody(response)
+			Expect(err).To(BeNil())
+			Expect(body).To(Equal(`{"status":"ok"}`))
+		})
+
+		It("responds with a status of ruh roh when there are stale datasets", func() {
+			testServer := testHandlerServer(handlers.DataSetStatusHandler)
+			defer testServer.Close()
+
+			stale := config_api.DataSetMetaData{}
+			stale.Published = true
+			maxExpectedAge := int64(8400)
+			stale.MaxExpectedAge = &maxExpectedAge
+
+			handlers.ConfigAPIClient = NewTestConfigAPIClient(nil,
+				[]config_api.DataSetMetaData{
+					config_api.DataSetMetaData{},
+					stale})
+
+			response, err := http.Get(testServer.URL)
+			Expect(err).To(BeNil())
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+			body, err := readResponseBody(response)
+			Expect(err).To(BeNil())
+			Expect(body).To(Equal(`{"status":"not okay","detail":"1 data-set is out of date"}`))
+
+		})
 	})
 })

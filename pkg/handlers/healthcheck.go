@@ -67,19 +67,17 @@ func checkFreshness(
 }
 
 func collectStaleness(datasets []config_api.DataSetMetaData) (failing chan DataSetStatus) {
+	failing = make(chan DataSetStatus, len(datasets))
+
 	if len(datasets) == 0 {
-		failing = make(chan DataSetStatus)
-		close(failing)
 		return
 	}
 
 	wg := &sync.WaitGroup{}
 	wg.Add(len(datasets))
-	failing = make(chan DataSetStatus, len(datasets))
 
 	for _, metaData := range datasets {
-		dataSet := dataset.DataSet{DataSetStorage, metaData}
-		go checkFreshness(dataSet, failing, wg)
+		go checkFreshness(dataset.DataSet{DataSetStorage, metaData}, failing, wg)
 	}
 
 	wg.Wait()
@@ -93,6 +91,8 @@ func setStatusHeaders(w http.ResponseWriter) {
 }
 
 func summariseStaleness(failing chan DataSetStatus) *ErrorInfo {
+	// close the channel so that we don't block trying to read when we get to the end
+	close(failing)
 	allGood := true
 
 	message := "All data-sets are in date"
