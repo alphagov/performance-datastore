@@ -38,8 +38,12 @@ var (
 	// DataSetStorage is the application global for talking to persistent storage
 	// It is like this to allow test implementations to be injected.
 	DataSetStorage dataset.DataSetStorage
-	renderer       = render.New(render.Options{})
-	statsdClient   = newStatsDClient("localhost:8125", "datastore.")
+
+	// ConfigAPIClient allows the client to be injected for testing purposes
+	ConfigAPIClient config_api.Client
+
+	renderer     = render.New(render.Options{})
+	statsdClient = newStatsDClient("localhost:8125", "datastore.")
 )
 
 // DataTypeHandler is responsible for serving data type meta data
@@ -202,5 +206,5 @@ func fetchDataMetaData(dataGroup string, dataType string) (*config_api.DataSetMe
 	dataTypeStart := time.Now()
 	defer statsDTiming(fmt.Sprintf("config.%s.%s", dataGroup, dataType),
 		dataTypeStart, time.Now())
-	return config_api.NewClient("", "").DataType(dataGroup, dataType)
+	return ConfigAPIClient.DataType(dataGroup, dataType)
 }

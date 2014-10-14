@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/alext/tablecloth"
 	"github.com/go-martini/martini"
+	"github.com/jabley/performance-datastore/pkg/config_api"
 	"github.com/jabley/performance-datastore/pkg/handlers"
 	"log"
 	"net/http"
@@ -19,11 +20,14 @@ func main() {
 		port         = getEnvDefault("HTTP_PORT", "8080")
 		databaseName = getEnvDefault("DBNAME", "backdrop")
 		mongoURL     = getEnvDefault("MONGO_URL", "localhost")
+		bearerToken  = getEnvDefault("BEARER_TOKEN", "EMPTY")
+		configAPIURL = getEnvDefault("CONFIG_API_URL", "https://stagecraft.production.performance.service.gov.uk/")
 	)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
+	handlers.ConfigAPIClient = config_api.NewClient(configAPIURL, bearerToken)
 	handlers.DataSetStorage = handlers.NewMongoStorage(mongoURL, databaseName)
 
 	m := registerRoutes()

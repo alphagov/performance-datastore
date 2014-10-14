@@ -36,7 +36,7 @@ type DataSetStatus struct {
 //
 // GET /_status/data-sets
 func DataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
-	datasets, err := config_api.NewClient("", "").ListDataSets()
+	datasets, err := ConfigAPIClient.ListDataSets()
 
 	if err != nil {
 		panic(err)
