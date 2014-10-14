@@ -6,12 +6,6 @@ import (
 	"github.com/jabley/performance-datastore/pkg/request"
 )
 
-var (
-	baseURL = "https://stagecraft.production.performance.service.gov.uk"
-	token   = "2ac9707dcdbc3333d82204860d05035ca381432a413e933c5c4e5b2d28f4d16c"
-	version = "1.0"
-)
-
 type DataSetMetaData struct {
 	Name            string          `json:"name"`
 	DataGroup       string          `json:"data_group"`
