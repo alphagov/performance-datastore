@@ -1,59 +1,63 @@
-package dataset
+package dataset_test
 
 import (
 	"github.com/jabley/performance-datastore/pkg/config_api"
-	"testing"
+	. "github.com/jabley/performance-datastore/pkg/dataset"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-func TestPublishedDefaultValue(t *testing.T) {
-	metaData := config_api.DataSetMetaData{}
-	dataSet := DataSet{nil, metaData}
-	if dataSet.IsPublished() {
-		t.Error("Default value for isPublished should be false")
-	}
-}
+var _ = Describe("Dataset", func() {
+	Describe("DataSetMetaData", func() {
+		It("should default IsPublished to false", func() {
+			metaData := config_api.DataSetMetaData{}
+			dataSet := DataSet{nil, metaData}
+			Expect(dataSet.IsPublished()).Should(BeFalse())
+		})
 
-func TestPublishedFlagIsRead(t *testing.T) {
-	metaData := config_api.DataSetMetaData{}
-	metaData.Published = true
-	dataSet := DataSet{nil, metaData}
-	if !dataSet.IsPublished() {
-		t.Error("Published field was not read")
-	}
-}
+		It("IsPublished should be read from the meta data", func() {
+			metaData := config_api.DataSetMetaData{}
+			metaData.Published = true
+			dataSet := DataSet{nil, metaData}
+			Expect(dataSet.IsPublished()).Should(BeTrue())
+		})
 
-func TestQueryableDefaultValue(t *testing.T) {
-	metaData := config_api.DataSetMetaData{}
-	dataSet := DataSet{nil, metaData}
-	if dataSet.IsQueryable() {
-		t.Error("Default value for isQueryable should be false")
-	}
-}
+		It("should default IsQueryable to false", func() {
+			metaData := config_api.DataSetMetaData{}
+			dataSet := DataSet{nil, metaData}
+			Expect(dataSet.IsQueryable()).Should(BeFalse())
+		})
 
-func TestQueryableFlagIsRead(t *testing.T) {
-	metaData := config_api.DataSetMetaData{}
-	metaData.Queryable = true
-	dataSet := DataSet{nil, metaData}
-	if !dataSet.IsQueryable() {
-		t.Error("Queryable field was not read")
-	}
-}
+		It("IsQueryable should be read from the meta data", func() {
+			metaData := config_api.DataSetMetaData{}
+			metaData.Queryable = true
+			dataSet := DataSet{nil, metaData}
+			Expect(dataSet.IsQueryable()).Should(BeTrue())
+		})
 
-func TestCappedSize(t *testing.T) {
-	metaData := config_api.DataSetMetaData{}
-	metaData.CappedSize = 12345
-	dataSet := DataSet{nil, metaData}
-	cappedSize := dataSet.CappedSize()
-	if int64(12345) != cappedSize {
-		t.Errorf("Expected <%v> but was <%v>", 12345, cappedSize)
-	}
-}
+		It("CappedSize should default to 0", func() {
+			metaData := config_api.DataSetMetaData{}
+			dataSet := DataSet{nil, metaData}
+			Expect(dataSet.CappedSize()).Should(Equal(int64(0)))
+		})
 
-func TestNoCappedSizeIsNil(t *testing.T) {
-	metaData := config_api.DataSetMetaData{}
-	dataSet := DataSet{nil, metaData}
-	cappedSize := dataSet.CappedSize()
-	if cappedSize != 0 {
-		t.Errorf("Expected <%v> but was <%v>", 0, cappedSize)
-	}
-}
+		It("CappedSize should be read from the meta data", func() {
+			metaData := config_api.DataSetMetaData{}
+			metaData.CappedSize = 12345
+			dataSet := DataSet{nil, metaData}
+			Expect(dataSet.CappedSize()).Should(Equal(int64(12345)))
+		})
+	})
+
+	Describe("Auto IDs", func() {
+		It("Should not alter input when there are no auto IDs defined", func() {
+			metaData := config_api.DataSetMetaData{}
+			dataSet := DataSet{nil, metaData}
+			record := map[string]string{"foo": "foo", "bar": "bar"}
+			records := []map[string]string{record}
+			actual := dataSet.ProcessAutoIds(records, nil)
+			Expect(records).Should(Equal(actual))
+		})
+
+	})
+})

@@ -100,12 +100,12 @@ func (d DataSet) createIfNecessary() {
 	}
 }
 
-func (d DataSet) store(data []interface{}) (errors []error) {
+func (d DataSet) store(data interface{}) (errors []error) {
 
-	d.validateAgainstSchema(&data, &errors)
-	d.processAutoIds(&data, &errors)
-	d.parseTimestamps(&data, &errors)
-	d.validateRecords(&data, &errors)
+	d.ValidateAgainstSchema(data, &errors)
+	d.ProcessAutoIds(data, &errors)
+	d.ParseTimestamps(data, &errors)
+	d.ValidateRecords(data, &errors)
 
 	if len(errors) > 0 {
 		return errors
@@ -113,14 +113,16 @@ func (d DataSet) store(data []interface{}) (errors []error) {
 
 	d.addPeriodData(&data)
 
-	for _, record := range data {
+	records := data.([]interface{})
+
+	for _, record := range records {
 		d.saveRecord(record)
 	}
 
 	return
 }
 
-func (d DataSet) validateAgainstSchema(data *[]interface{}, errors *[]error) {
+func (d DataSet) ValidateAgainstSchema(data interface{}, errors *[]error) {
 	// schema, ok := d.MetaData.Schema
 	ok := false
 
@@ -134,11 +136,11 @@ func (d DataSet) validateAgainstSchema(data *[]interface{}, errors *[]error) {
 	}
 }
 
-func (d DataSet) addPeriodData(data *[]interface{}) {
+func (d DataSet) addPeriodData(data interface{}) {
 
 }
 
-func (d DataSet) validateRecords(data *[]interface{}, errors *[]error) {
+func (d DataSet) ValidateRecords(data interface{}, errors *[]error) {
 
 }
 
@@ -146,23 +148,24 @@ func (d DataSet) saveRecord(record interface{}) {
 
 }
 
-func (d DataSet) parseTimestamps(data *[]interface{}, errors *[]error) {
+func (d DataSet) ParseTimestamps(data interface{}, errors *[]error) {
 
 }
 
-func (d DataSet) processAutoIds(data *[]interface{}, errors *[]error) {
+func (d DataSet) ProcessAutoIds(data interface{}, errors *[]error) interface{} {
 
 	if len(d.MetaData.AutoIds) > 0 {
-		addAutoIds(data, d.MetaData.AutoIds, errors)
+		return addAutoIds(data, d.MetaData.AutoIds, errors)
 	}
+	return data
 }
 
 func validateRecord(record interface{}, schema string) error {
 	return nil
 }
 
-func addAutoIds(data *[]interface{}, autoIds []string, errors *[]error) {
-
+func addAutoIds(data interface{}, autoIds []string, errors *[]error) interface{} {
+	return data
 }
 
 func (d DataSet) collectionExists(name string) bool {
