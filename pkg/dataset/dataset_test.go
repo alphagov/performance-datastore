@@ -8,8 +8,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func Unmarshal(t string) map[string]interface{} {
-	var r map[string]interface{}
+func Unmarshal(t string) interface{} {
+	var r interface{}
 	err := json.Unmarshal([]byte(t), &r)
 	Expect(err).To(BeNil())
 	return r
@@ -62,9 +62,31 @@ var _ = Describe("Dataset", func() {
 			metaData := config_api.DataSetMetaData{}
 			dataSet := DataSet{nil, metaData}
 			record := Unmarshal(`{"foo": "foo", "bar": "bar"}`)
-			records := []map[string]interface{}{record}
+			records := []interface{}{record}
 			actual := dataSet.ProcessAutoIds(records, nil)
 			Expect(records).Should(Equal(actual))
+		})
+
+		It("Should add an auto ID based on a single field", func() {
+			metaData := config_api.DataSetMetaData{}
+			metaData.AutoIds = []string{"foo"}
+			dataSet := DataSet{nil, metaData}
+			record := Unmarshal(`{"foo": "foo", "bar": "bar"}`)
+			records := []interface{}{record}
+			actual := dataSet.ProcessAutoIds(records, nil)
+			expected := Unmarshal(`{"foo": "foo", "bar": "bar","_id": "Zm9v"}`)
+			Expect([]interface{}{expected}).Should(Equal(actual))
+		})
+
+		It("Should add an auto ID based on multiple fields", func() {
+			metaData := config_api.DataSetMetaData{}
+			metaData.AutoIds = []string{"foo", "bar"}
+			dataSet := DataSet{nil, metaData}
+			record := Unmarshal(`{"foo": "foo", "bar": "bar"}`)
+			records := []interface{}{record}
+			actual := dataSet.ProcessAutoIds(records, nil)
+			expected := Unmarshal(`{"foo": "foo", "bar": "bar","_id": "Zm9vLmJhcg=="}`)
+			Expect([]interface{}{expected}).Should(Equal(actual))
 		})
 
 	})

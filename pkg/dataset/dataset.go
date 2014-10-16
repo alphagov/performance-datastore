@@ -1,6 +1,8 @@
 package dataset
 
 import (
+	"encoding/base64"
+	"fmt"
 	"github.com/jabley/performance-datastore/pkg/config_api"
 	"time"
 )
@@ -40,7 +42,7 @@ func (d DataSet) IsStale() bool {
 	return false
 }
 
-func (d DataSet) Append(data []map[string]interface{}) []error {
+func (d DataSet) Append(data []interface{}) []error {
 	d.createIfNecessary()
 	return d.store(data)
 }
@@ -100,7 +102,7 @@ func (d DataSet) createIfNecessary() {
 	}
 }
 
-func (d DataSet) store(data []map[string]interface{}) (errors []error) {
+func (d DataSet) store(data []interface{}) (errors []error) {
 
 	d.ValidateAgainstSchema(data, &errors)
 	d.ProcessAutoIds(data, &errors)
@@ -120,7 +122,7 @@ func (d DataSet) store(data []map[string]interface{}) (errors []error) {
 	return
 }
 
-func (d DataSet) ValidateAgainstSchema(data []map[string]interface{}, errors *[]error) {
+func (d DataSet) ValidateAgainstSchema(data []interface{}, errors *[]error) {
 	// schema, ok := d.MetaData.Schema
 	ok := false
 
@@ -134,47 +136,82 @@ func (d DataSet) ValidateAgainstSchema(data []map[string]interface{}, errors *[]
 	}
 }
 
-func (d DataSet) addPeriodData(data []map[string]interface{}) {
+func (d DataSet) addPeriodData(data []interface{}) {
 
 }
 
-func (d DataSet) ValidateRecords(data []map[string]interface{}, errors *[]error) {
+func (d DataSet) ValidateRecords(data []interface{}, errors *[]error) {
 
 }
 
-func (d DataSet) saveRecord(record map[string]interface{}) {
+func (d DataSet) saveRecord(record interface{}) {
 
 }
 
-func (d DataSet) ParseTimestamps(data []map[string]interface{}, errors *[]error) {
+func (d DataSet) ParseTimestamps(data []interface{}, errors *[]error) {
 
 }
 
-func (d DataSet) ProcessAutoIds(data []map[string]interface{}, errors *[]error) interface{} {
-	if len(d.MetaData.AutoIds) > 0 {
+func (d DataSet) ProcessAutoIds(data []interface{}, errors *[]error) interface{} {
+	if len(d.MetaData.AutoIds) > 0 && len(data) != 0 {
 		return addAutoIds(data, d.MetaData.AutoIds, errors)
 	}
 	return data
 }
 
-func validateRecord(record map[string]interface{}, schema string) error {
+func validateRecord(record interface{}, schema string) error {
 	return nil
 }
 
-func addAutoIds(data []map[string]interface{}, autoIds []string, errors *[]error) interface{} {
-	if len(data) == 0 {
-		return data
-	}
-
+func addAutoIds(data []interface{}, autoIds []string, errors *[]error) interface{} {
 	for _, record := range data {
-		generateAutoID(&record, autoIds, errors)
+		addAutoId(record, autoIds, errors)
 	}
 
 	return data
 }
 
-func generateAutoID(record *map[string]interface{}, autoIds []string, errors *[]error) {
+func addAutoId(r interface{}, autoIds []string, errors *[]error) {
+	record, ok := r.(map[string]interface{})
+	if !ok {
+		*errors = append(*errors, fmt.Errorf("Unable to handle record as map"))
+		return
+	}
 
+	keys := make([]string, len(record))
+	i := 0
+	for k, _ := range record {
+		keys[i] = k
+		i++
+	}
+
+	missingIdFields := []string{}
+	for _, id := range autoIds {
+		_, ok = record[id]
+		if !ok {
+			missingIdFields = append(missingIdFields, id)
+		}
+	}
+
+	if len(missingIdFields) > 0 {
+		// "The following required id fields are missing: {}".format(
+		// ', '.join(missing_keys)))
+		panic("The following required id fields are missing: ")
+	}
+
+	record["_id"] = generateAutoId(record, autoIds)
+}
+
+func generateAutoId(record map[string]interface{}, autoIDs []string) string {
+	b := ""
+	for _, id := range autoIDs {
+		var sep = "."
+		if len(b) == 0 {
+			sep = ""
+		}
+		b = b + sep + string(record[id].(string))
+	}
+	return base64.StdEncoding.EncodeToString([]byte(b))
 }
 
 func (d DataSet) collectionExists(name string) bool {
