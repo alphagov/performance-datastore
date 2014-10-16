@@ -1,11 +1,19 @@
 package dataset_test
 
 import (
+	"encoding/json"
 	"github.com/jabley/performance-datastore/pkg/config_api"
 	. "github.com/jabley/performance-datastore/pkg/dataset"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
+
+func Unmarshal(t string) map[string]interface{} {
+	var r map[string]interface{}
+	err := json.Unmarshal([]byte(t), &r)
+	Expect(err).To(BeNil())
+	return r
+}
 
 var _ = Describe("Dataset", func() {
 	Describe("DataSetMetaData", func() {
@@ -53,8 +61,8 @@ var _ = Describe("Dataset", func() {
 		It("Should not alter input when there are no auto IDs defined", func() {
 			metaData := config_api.DataSetMetaData{}
 			dataSet := DataSet{nil, metaData}
-			record := map[string]string{"foo": "foo", "bar": "bar"}
-			records := []map[string]string{record}
+			record := Unmarshal(`{"foo": "foo", "bar": "bar"}`)
+			records := []map[string]interface{}{record}
 			actual := dataSet.ProcessAutoIds(records, nil)
 			Expect(records).Should(Equal(actual))
 		})

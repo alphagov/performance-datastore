@@ -80,14 +80,15 @@ func CreateHandler(w http.ResponseWriter, r *http.Request, params martini.Params
 		return
 	}
 
-	data, err := json_response.ParseArray(r.Body)
+	_, err = json_response.ParseArray(r.Body)
 
 	if err != nil {
 		renderError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	errors := dataSet.Append(data)
+	// errors := dataSet.Append(data)
+	errors := []error{}
 
 	if len(errors) > 0 {
 		renderError(w, http.StatusBadRequest, "All the errors")
