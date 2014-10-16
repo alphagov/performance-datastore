@@ -34,7 +34,7 @@ func (x *dateTimeValidator) Validate(args map[string][]string) (err error, res i
 		return fmt.Errorf("%s is not a valid datetime", x.name), nil
 	}
 
-	if res = parseDateTime(values[0]); res == nil {
+	if res = ParseDateTime(values[0]); res == nil {
 		return fmt.Errorf("%s is not a valid datetime", x.name), nil
 	}
 
@@ -42,12 +42,24 @@ func (x *dateTimeValidator) Validate(args map[string][]string) (err error, res i
 }
 
 func isValidDateTime(candidate string) bool {
-	return parseDateTime(candidate) != nil
+	return ParseDateTime(candidate) != nil
 }
 
-func parseDateTime(candidate string) *time.Time {
+func ParseDateTime(candidate interface{}) *time.Time {
+	res, isTime := candidate.(time.Time)
+
+	if isTime {
+		return &res
+	}
+
+	str, isString := candidate.(string)
+
+	if !isString {
+		return nil
+	}
+
 	for _, layout := range validLayouts {
-		dt, err := time.Parse(layout, candidate)
+		dt, err := time.Parse(layout, str)
 		if err == nil {
 			return &dt
 		}
@@ -77,7 +89,7 @@ func (x *midnightValidator) Validate(args map[string][]string) (err error, res i
 
 	periodErr, period := NewPeriodValidator().Validate(args)
 
-	if theDate := parseDateTime(values[0]); theDate != nil &&
+	if theDate := ParseDateTime(values[0]); theDate != nil &&
 		periodErr == nil &&
 		(period != nil && period != "hour") {
 

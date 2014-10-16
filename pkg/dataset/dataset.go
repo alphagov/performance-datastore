@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/jabley/performance-datastore/pkg/config_api"
+	"github.com/jabley/performance-datastore/pkg/validation"
 	"time"
 )
 
@@ -149,7 +150,36 @@ func (d DataSet) saveRecord(record interface{}) {
 }
 
 func (d DataSet) ParseTimestamps(data []interface{}, errors *[]error) {
+	for _, r := range data {
+		parseTimestamp(r, errors)
+	}
+}
 
+func parseTimestamp(r interface{}, errors *[]error) {
+	record, ok := r.(map[string]interface{})
+	if !ok {
+		*errors = append(*errors, fmt.Errorf("Unable to handle record as map"))
+		return
+	}
+
+	current, hasTimestamp := record["_timestamp"]
+
+	if hasTimestamp {
+		if res, err := tryParseTimestamp(current); err != nil {
+			*errors = append(*errors, err)
+		} else {
+			record["_timestamp"] = *res
+		}
+	}
+}
+
+func tryParseTimestamp(t interface{}) (*time.Time, error) {
+	res := validation.ParseDateTime(t)
+	if res != nil {
+		return res, nil
+	}
+
+	return nil, fmt.Errorf("_timestamp is not a valid timestamp, it must be ISO8601")
 }
 
 func (d DataSet) ProcessAutoIds(data []interface{}, errors *[]error) interface{} {

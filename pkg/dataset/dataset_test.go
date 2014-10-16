@@ -6,6 +6,7 @@ import (
 	. "github.com/jabley/performance-datastore/pkg/dataset"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"time"
 )
 
 func Unmarshal(t string) interface{} {
@@ -89,5 +90,44 @@ var _ = Describe("Dataset", func() {
 			Expect([]interface{}{expected}).Should(Equal(actual))
 		})
 
+	})
+
+	Describe("Timestamps", func() {
+		It("Should not modify a record which does not contain a timestamp", func() {
+			metaData := config_api.DataSetMetaData{}
+			dataSet := DataSet{nil, metaData}
+			record := Unmarshal(`{}`)
+			records := []interface{}{record}
+			errors := []error{}
+			dataSet.ParseTimestamps(records, &errors)
+			Expect(len(errors)).Should(Equal(0))
+			expected := map[string]interface{}{}
+			Expect([]interface{}{expected}).Should(Equal(records))
+		})
+
+		It("Should convert valid string timestamp to time.Date", func() {
+			metaData := config_api.DataSetMetaData{}
+			dataSet := DataSet{nil, metaData}
+			record := Unmarshal(`{"_timestamp": "2012-12-12T00:00:00"}`)
+			records := []interface{}{record}
+			errors := []error{}
+			dataSet.ParseTimestamps(records, &errors)
+			Expect(len(errors)).Should(Equal(0))
+			expected := map[string]interface{}{"_timestamp": time.Date(2012, 12, 12, 0, 0, 0, 0, time.UTC)}
+			Expect([]interface{}{expected}).Should(Equal(records))
+		})
+
+		It("Should return an error with an invalid timestamp", func() {
+			metaData := config_api.DataSetMetaData{}
+			dataSet := DataSet{nil, metaData}
+			record := Unmarshal(`{"_timestamp": "invalid"}`)
+			records := []interface{}{record}
+			errors := []error{}
+			dataSet.ParseTimestamps(records, &errors)
+			Expect(len(errors)).Should(Equal(1))
+			expected := map[string]interface{}{"_timestamp": "invalid"}
+			Expect([]interface{}{expected}).Should(Equal(records))
+			Expect(errors[0].Error()).Should(Equal("_timestamp is not a valid timestamp, it must be ISO8601"))
+		})
 	})
 })
