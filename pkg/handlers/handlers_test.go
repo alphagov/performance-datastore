@@ -35,6 +35,10 @@ func (mock *TestDataSetStorage) LastUpdated(name string) *time.Time {
 	return mock.lastUpdated
 }
 
+func (mock *TestDataSetStorage) SaveRecord(name string, record map[string]interface{}) error {
+	return nil
+}
+
 func NewTestDataSetStorage(alive bool, lastUpdated *time.Time) dataset.DataSetStorage {
 	return &TestDataSetStorage{alive, lastUpdated}
 }
