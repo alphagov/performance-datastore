@@ -245,4 +245,22 @@ var _ = Describe("Dataset", func() {
 			// with "format": "date-time", we may want to add those to our own validation.
 		})
 	})
+
+	Describe("Period Data", func() {
+		It("Should add period data for richer querying", func() {
+			record := map[string]interface{}{"_timestamp": time.Date(2012, 12, 12, 12, 12, 0, 0, time.UTC)}
+			records := []interface{}{record}
+			dataSet.AddPeriodData(records)
+			expected := map[string]interface{}{
+				"_timestamp":        time.Date(2012, 12, 12, 12, 12, 0, 0, time.UTC),
+				"_hour_start_at":    time.Date(2012, 12, 12, 12, 0, 0, 0, time.UTC),
+				"_day_start_at":     time.Date(2012, 12, 12, 0, 0, 0, 0, time.UTC),
+				"_week_start_at":    time.Date(2012, 12, 10, 0, 0, 0, 0, time.UTC),
+				"_month_start_at":   time.Date(2012, 12, 1, 0, 0, 0, 0, time.UTC),
+				"_quarter_start_at": time.Date(2012, 10, 1, 0, 0, 0, 0, time.UTC),
+				"_year_start_at":    time.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC)}
+			Expect([]interface{}{expected}).Should(Equal(records))
+		})
+
+	})
 })

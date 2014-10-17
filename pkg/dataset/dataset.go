@@ -128,7 +128,7 @@ func (d DataSet) store(data []interface{}) (errors []error) {
 		return errors
 	}
 
-	d.addPeriodData(data)
+	d.AddPeriodData(data)
 
 	for _, record := range data {
 		d.saveRecord(record)
@@ -163,8 +163,32 @@ func (d DataSet) ValidateAgainstSchema(data []interface{}, errors *[]error) {
 	}
 }
 
-func (d DataSet) addPeriodData(data []interface{}) {
+func (d DataSet) AddPeriodData(data []interface{}) {
+	for _, r := range data {
+		addPeriodData(r)
+	}
+}
 
+func addPeriodData(r interface{}) {
+	record, ok := r.(map[string]interface{})
+
+	if ok {
+		t, ok := record["_timestamp"]
+		if ok {
+			switch t.(type) {
+			case time.Time:
+				{
+					// add other fields based on t
+					v := t.(time.Time)
+					for _, p := range Periods {
+						record[p.FieldName()] = p.Value(v)
+					}
+				}
+			default:
+				panic("_timestamp is not a time.Time")
+			}
+		}
+	}
 }
 
 func (d DataSet) ValidateRecords(data []interface{}, errors *[]error) {
