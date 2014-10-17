@@ -42,7 +42,7 @@ func (x *collectValidator) Validate(args map[string][]string) (err error, res in
 			}
 		}
 
-		if !isValidKey(key) {
+		if !IsValidKey(key) {
 			return fmt.Errorf("collect isn't a valid key <%v>", key), nil
 		}
 

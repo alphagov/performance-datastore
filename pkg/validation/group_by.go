@@ -22,7 +22,7 @@ func (x *groupByValidator) Validate(args map[string][]string) (err error, res in
 		return fmt.Errorf("Can only have a single value for <group_by>"), nil
 	}
 
-	if !isValidKey(values[0]) {
+	if !IsValidKey(values[0]) {
 		return fmt.Errorf("Cannot group by an invalid field name"), nil
 	}
 

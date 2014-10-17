@@ -32,7 +32,7 @@ func isValidFilterBy(candidate string) bool {
 		return false
 	}
 
-	if !isValidKey(strings.Split(candidate, ":")[0]) {
+	if !IsValidKey(strings.Split(candidate, ":")[0]) {
 		return false
 	}
 

@@ -3,6 +3,7 @@ package validation
 import (
 	"regexp"
 	"strings"
+	"time"
 )
 
 type Validator interface {
@@ -46,6 +47,43 @@ var (
 	validKey = regexp.MustCompile(`^[a-z_][a-z0-9_]+$`)
 )
 
-func isValidKey(key string) bool {
+func IsValidKey(key string) bool {
 	return validKey.MatchString(strings.ToLower(key))
+}
+
+func IsInternalKey(key string) bool {
+	return strings.HasPrefix(key, "_")
+}
+
+func IsReservedKey(key string) bool {
+	switch key {
+	case "_id", "_timestamp":
+		return true
+	default:
+		return false
+	}
+}
+
+func IsValidID(v interface{}) bool {
+	switch v.(type) {
+	case string:
+		{
+			s := v.(string)
+			hasSpace, err := regexp.MatchString(`\s`, s)
+			return len(s) > 0 && (err == nil && !hasSpace)
+		}
+	default:
+		return false
+	}
+}
+
+func IsValidValue(v interface{}) bool {
+	switch v.(type) {
+	case int64, float64, string, time.Time:
+		{
+			return true
+		}
+	default:
+		return v == nil
+	}
 }

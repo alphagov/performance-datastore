@@ -48,7 +48,7 @@ func validateSortBy(candidate string) error {
 		}
 	}
 
-	if !isValidKey(values[0]) {
+	if !IsValidKey(values[0]) {
 		return fmt.Errorf("Invalid key <%v>", values[0])
 	}
 

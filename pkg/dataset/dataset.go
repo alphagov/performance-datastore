@@ -142,7 +142,9 @@ func (d DataSet) addPeriodData(data []interface{}) {
 }
 
 func (d DataSet) ValidateRecords(data []interface{}, errors *[]error) {
-
+	for _, r := range data {
+		validateRecord(r, errors)
+	}
 }
 
 func (d DataSet) saveRecord(record interface{}) {
@@ -189,8 +191,46 @@ func (d DataSet) ProcessAutoIds(data []interface{}, errors *[]error) interface{}
 	return data
 }
 
-func validateRecord(record interface{}, schema string) error {
-	return nil
+func validateRecord(r interface{}, errors *[]error) {
+	record, ok := r.(map[string]interface{})
+	if !ok {
+		*errors = append(*errors, fmt.Errorf("Unable to handle record as map"))
+		return
+	}
+
+	for k, v := range record {
+		if !validation.IsValidKey(k) {
+			*errors = append(*errors, fmt.Errorf("%v is not a valid key", k))
+			return
+		}
+
+		if validation.IsInternalKey(k) &&
+			!validation.IsReservedKey(k) {
+			*errors = append(*errors, fmt.Errorf("%v is not a recognised internal field", k))
+			return
+		}
+
+		if !validation.IsValidValue(v) {
+			*errors = append(*errors, fmt.Errorf("%v has an invalid value", k))
+			return
+		}
+
+		if k == "_timestamp" {
+			switch v.(type) {
+			case time.Time:
+			default:
+				{
+					*errors = append(*errors, fmt.Errorf("_timestamp is not a valid datetime object"))
+					return
+				}
+			}
+		}
+
+		if k == "_id" && !validation.IsValidID(v) {
+			*errors = append(*errors, fmt.Errorf("id is not a valid ID"))
+			return
+		}
+	}
 }
 
 func addAutoIds(data []interface{}, autoIds []string, errors *[]error) interface{} {
