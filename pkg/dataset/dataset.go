@@ -2,9 +2,11 @@ package dataset
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/jabley/performance-datastore/pkg/config_api"
 	"github.com/jabley/performance-datastore/pkg/validation"
+	"github.com/xeipuuv/gojsonschema"
 	"time"
 )
 
@@ -136,16 +138,28 @@ func (d DataSet) store(data []interface{}) (errors []error) {
 }
 
 func (d DataSet) ValidateAgainstSchema(data []interface{}, errors *[]error) {
-	// schema, ok := d.MetaData.Schema
-	ok := false
+	schema := d.MetaData.Schema
 
-	if ok {
-		// for _, record := range *data {
-		// e := validateRecord(record, schema)
-		// if e != nil {
-		// 	*errors = append(*errors, e)
-		// }
-		// }
+	if schema != nil {
+		var jsonDoc map[string]interface{}
+		err := json.Unmarshal(d.MetaData.Schema, &jsonDoc)
+
+		if err != nil {
+			panic(err)
+		}
+
+		schemaDocument, err := gojsonschema.NewJsonSchemaDocument(jsonDoc)
+		if err != nil {
+			panic(err)
+		}
+		for _, r := range data {
+			result := schemaDocument.Validate(r)
+			if !result.Valid() {
+				for _, err := range result.Errors() {
+					*errors = append(*errors, fmt.Errorf(err.Description))
+				}
+			}
+		}
 	}
 }
 

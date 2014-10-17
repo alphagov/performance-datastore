@@ -179,4 +179,70 @@ var _ = Describe("Dataset", func() {
 			Expect([]interface{}{expected}).Should(Equal(records))
 		})
 	})
+
+	Describe("Schema", func() {
+		BeforeEach(func() {
+			dataSet.MetaData.Schema = json.RawMessage(`
+{
+  "definitions": {
+  	"_timestamp": {
+    	"$schema": "http://json-schema.org/schema#",
+     	"required": [
+      	"_timestamp"
+     	],
+     	"type": "object",
+     	"properties": {
+      	"_timestamp": {
+       		"type": "string",
+       		"description": "An ISO8601 formatted date time",
+       		"format": "date-time"
+      	}
+     	},
+     	"title": "Timestamps"
+    }
+  },
+  "description": "Schema for deposit-foreign-marriage/journey",
+  "allOf": [
+  	{
+     "$ref": "#/definitions/_timestamp"
+    }
+  ]
+}`)
+		})
+
+		It("Should validate against a simple schema", func() {
+			record := map[string]interface{}{"_timestamp": "2012-12-12T00:00:00"}
+			records := []interface{}{record}
+			dataSet.ValidateAgainstSchema(records, &errors)
+			Expect(len(errors)).Should(Equal(0))
+			expected := map[string]interface{}{"_timestamp": "2012-12-12T00:00:00"}
+			Expect([]interface{}{expected}).Should(Equal(records))
+		})
+
+		It("Should propagate schema validation failures", func() {
+			record := map[string]interface{}{"foo": "bar"}
+			records := []interface{}{record}
+			dataSet.ValidateAgainstSchema(records, &errors)
+			Expect(len(errors)).Should(Equal(2))
+			Expect(errors[0].Error()).Should(Equal(`"_timestamp" property is missing and required`))
+			Expect(errors[1].Error()).Should(Equal(`must validate all the schemas (allOf)`))
+			expected := map[string]interface{}{"foo": "bar"}
+			Expect([]interface{}{expected}).Should(Equal(records))
+		})
+
+		It("date-time field is validated", func() {
+			record := map[string]interface{}{"_timestamp": "bar"}
+			records := []interface{}{record}
+			dataSet.ValidateAgainstSchema(records, &errors)
+			Expect(len(errors)).Should(Equal(0))
+			expected := map[string]interface{}{"_timestamp": "bar"}
+			Expect([]interface{}{expected}).Should(Equal(records))
+
+			// Currently the go implemenation does the MAY aspect of the spec,
+			// and doesn't validate formats.
+			// http://tools.ietf.org/html/draft-fge-json-schema-validation-00#section-7.2
+			// We validate that separately ourselves for _timestamp. If other schemas are defined
+			// with "format": "date-time", we may want to add those to our own validation.
+		})
+	})
 })

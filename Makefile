@@ -19,6 +19,7 @@ reproducible: third_party/src/$(REPO_PATH) rm_compiled_self
 	go run third_party.go bump github.com/onsi/ginkgo 9064f1684d498eba1ec104747a766ee0f9222f44
 	go run third_party.go bump github.com/onsi/gomega 0251f51e656d4db8980bdd6b15596abb27fdfe87
 	go run third_party.go bump github.com/quipo/statsd e260042c957aa6ffa369c4f38c21d66cfad15ffc
+	go run third_party.go bump github.com/xeipuuv/gojsonschema b77385941381681f1bba177899ed1d1bedd32ea2
 	go run third_party.go bump gopkg.in/mgo.v2 c9fd3712fbf3e92924c974dce16da2d322508fe2
 	go run third_party.go bump gopkg.in/unrolled/render.v1 cf57b1afa5d93abdbd356aad95d7c2720dad6d01
 
