@@ -27,9 +27,13 @@ func StatusHandler(w http.ResponseWriter, r *http.Request) {
 
 type DataSetStatus struct {
 	Name             string    `json:"name"`
-	SecondsOutOfDate int       `json:"seconds-out-of-date"`
+	SecondsOutOfDate int64     `json:"seconds-out-of-date"`
 	LastUpdated      time.Time `json:"last-updated"`
-	MaxAgeExpected   int       `json:"max-age-expected"`
+	MaxAgeExpected   int64     `json:"max-age-expected"`
+}
+
+func (d DataSetStatus) String() string {
+	return fmt.Sprintf("name: %v, seconds-out-of-date: %v, last-updated: %v, max-age-expected: %v", d.Name, d.SecondsOutOfDate, d.LastUpdated, d.MaxAgeExpected)
 }
 
 // DataSetStatusHandler is basic healthcheck for all of the datasets
@@ -61,8 +65,8 @@ func checkFreshness(
 	wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	if dataSet.IsStale() && dataSet.IsPublished() {
-		failing <- DataSetStatus{dataSet.Name(), 0, time.Now(), 0}
+	if staleness := dataSet.IsStale(); staleness.IsStale() && dataSet.IsPublished() {
+		failing <- DataSetStatus{dataSet.Name(), staleness.SecondsOutOfDate, *staleness.LastUpdated, *staleness.MaxExpectedAge}
 	}
 }
 

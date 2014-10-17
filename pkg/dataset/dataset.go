@@ -23,6 +23,16 @@ type DataSet struct {
 type Query struct {
 }
 
+type StalenessResult struct {
+	MaxExpectedAge   *int64
+	LastUpdated      *time.Time
+	SecondsOutOfDate int64
+}
+
+func (s *StalenessResult) IsStale() bool {
+	return s.SecondsOutOfDate > 0
+}
+
 func (d DataSet) IsQueryable() bool {
 	return d.MetaData.Queryable
 }
@@ -31,16 +41,18 @@ func (d DataSet) IsPublished() bool {
 	return d.MetaData.Published
 }
 
-func (d DataSet) IsStale() bool {
+func (d DataSet) IsStale() (r StalenessResult) {
 	expectedMaxAge := d.getMaxExpectedAge()
 	now := time.Now()
 	lastUpdated := d.getLastUpdated()
 
+	r = StalenessResult{expectedMaxAge, lastUpdated, 0}
+
 	if isStalenessAppropriate(expectedMaxAge, lastUpdated) {
-		return now.Sub(*lastUpdated) > time.Duration(*expectedMaxAge)
+		r.SecondsOutOfDate = int64((now.Sub(*lastUpdated) - time.Duration(*expectedMaxAge)).Seconds())
 	}
 
-	return false
+	return
 }
 
 func (d DataSet) Append(data []interface{}) []error {
