@@ -20,11 +20,13 @@ var _ = Describe("Dataset", func() {
 	var (
 		metaData config_api.DataSetMetaData
 		dataSet  DataSet
+		errors   []error
 	)
 
 	BeforeEach(func() {
 		metaData = config_api.DataSetMetaData{}
 		dataSet = DataSet{nil, metaData}
+		errors = []error{}
 	})
 
 	Describe("DataSetMetaData", func() {
@@ -60,7 +62,7 @@ var _ = Describe("Dataset", func() {
 		It("Should not alter input when there are no auto IDs defined", func() {
 			record := Unmarshal(`{"foo": "foo", "bar": "bar"}`)
 			records := []interface{}{record}
-			actual := dataSet.ProcessAutoIds(records, nil)
+			actual := dataSet.ProcessAutoIds(records, &errors)
 			Expect(records).Should(Equal(actual))
 		})
 
@@ -68,7 +70,7 @@ var _ = Describe("Dataset", func() {
 			dataSet.MetaData.AutoIds = []string{"foo"}
 			record := Unmarshal(`{"foo": "foo", "bar": "bar"}`)
 			records := []interface{}{record}
-			actual := dataSet.ProcessAutoIds(records, nil)
+			actual := dataSet.ProcessAutoIds(records, &errors)
 			expected := Unmarshal(`{"foo": "foo", "bar": "bar","_id": "Zm9v"}`)
 			Expect([]interface{}{expected}).Should(Equal(actual))
 		})
@@ -77,7 +79,7 @@ var _ = Describe("Dataset", func() {
 			dataSet.MetaData.AutoIds = []string{"foo", "bar"}
 			record := Unmarshal(`{"foo": "foo", "bar": "bar"}`)
 			records := []interface{}{record}
-			actual := dataSet.ProcessAutoIds(records, nil)
+			actual := dataSet.ProcessAutoIds(records, &errors)
 			expected := Unmarshal(`{"foo": "foo", "bar": "bar","_id": "Zm9vLmJhcg=="}`)
 			Expect([]interface{}{expected}).Should(Equal(actual))
 		})
@@ -87,7 +89,6 @@ var _ = Describe("Dataset", func() {
 		It("Should not modify a record which does not contain a timestamp", func() {
 			record := Unmarshal(`{}`)
 			records := []interface{}{record}
-			errors := []error{}
 			dataSet.ParseTimestamps(records, &errors)
 			Expect(len(errors)).Should(Equal(0))
 			expected := map[string]interface{}{}
@@ -97,7 +98,6 @@ var _ = Describe("Dataset", func() {
 		It("Should convert valid string timestamp to time.Date", func() {
 			record := Unmarshal(`{"_timestamp": "2012-12-12T00:00:00"}`)
 			records := []interface{}{record}
-			errors := []error{}
 			dataSet.ParseTimestamps(records, &errors)
 			Expect(len(errors)).Should(Equal(0))
 			expected := map[string]interface{}{"_timestamp": time.Date(2012, 12, 12, 0, 0, 0, 0, time.UTC)}
@@ -107,7 +107,6 @@ var _ = Describe("Dataset", func() {
 		It("Should return an error with an invalid timestamp", func() {
 			record := Unmarshal(`{"_timestamp": "invalid"}`)
 			records := []interface{}{record}
-			errors := []error{}
 			dataSet.ParseTimestamps(records, &errors)
 			Expect(len(errors)).Should(Equal(1))
 			expected := map[string]interface{}{"_timestamp": "invalid"}
@@ -120,7 +119,6 @@ var _ = Describe("Dataset", func() {
 		It("Should not allow invalid keys", func() {
 			record := Unmarshal(`{"1": "foo"}`)
 			records := []interface{}{record}
-			errors := []error{}
 			dataSet.ValidateRecords(records, &errors)
 			Expect(len(errors)).Should(Equal(1))
 			expected := Unmarshal(`{"1": "foo"}`)
@@ -130,7 +128,6 @@ var _ = Describe("Dataset", func() {
 		It("Should not allow things that look like unreserved keys", func() {
 			record := Unmarshal(`{"_foo": "foo"}`)
 			records := []interface{}{record}
-			errors := []error{}
 			dataSet.ValidateRecords(records, &errors)
 			Expect(len(errors)).Should(Equal(1))
 			expected := Unmarshal(`{"_foo": "foo"}`)
@@ -140,7 +137,6 @@ var _ = Describe("Dataset", func() {
 		It("Should allow things that look like reserved keys", func() {
 			record := Unmarshal(`{"_id": "foo"}`)
 			records := []interface{}{record}
-			errors := []error{}
 			dataSet.ValidateRecords(records, &errors)
 			Expect(len(errors)).Should(Equal(0))
 			expected := Unmarshal(`{"_id": "foo"}`)
@@ -150,7 +146,6 @@ var _ = Describe("Dataset", func() {
 		It("Should not allow values that aren't whitelisted", func() {
 			record := Unmarshal(`{"id": ["foo", "bar"]}`)
 			records := []interface{}{record}
-			errors := []error{}
 			dataSet.ValidateRecords(records, &errors)
 			Expect(len(errors)).Should(Equal(1))
 			expected := Unmarshal(`{"id": ["foo", "bar"]}`)
@@ -160,7 +155,6 @@ var _ = Describe("Dataset", func() {
 		It("Should only allow timestamps that look contain a time.Time instance", func() {
 			record := map[string]interface{}{"_timestamp": time.Date(2012, 12, 12, 0, 0, 0, 0, time.UTC)}
 			records := []interface{}{record}
-			errors := []error{}
 			dataSet.ValidateRecords(records, &errors)
 			Expect(len(errors)).Should(Equal(0))
 			expected := map[string]interface{}{"_timestamp": time.Date(2012, 12, 12, 0, 0, 0, 0, time.UTC)}
@@ -170,7 +164,6 @@ var _ = Describe("Dataset", func() {
 		It("Should not allow an int as an _id", func() {
 			record := map[string]interface{}{"_id": 1}
 			records := []interface{}{record}
-			errors := []error{}
 			dataSet.ValidateRecords(records, &errors)
 			Expect(len(errors)).Should(Equal(1))
 			expected := map[string]interface{}{"_id": 1}
@@ -180,7 +173,6 @@ var _ = Describe("Dataset", func() {
 		It("Should not allow a string with spaces as an _id", func() {
 			record := map[string]interface{}{"_id": "this should fail"}
 			records := []interface{}{record}
-			errors := []error{}
 			dataSet.ValidateRecords(records, &errors)
 			Expect(len(errors)).Should(Equal(1))
 			expected := map[string]interface{}{"_id": "this should fail"}
