@@ -24,5 +24,6 @@ _testmain.go
 
 # Project-specific
 peformance-datastore
-third_party
+peformance_datastore
 bin
+Godeps/_workspace
