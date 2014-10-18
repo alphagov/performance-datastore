@@ -15,6 +15,7 @@ type DataSetStorage interface {
 	Exists(name string) bool
 	Alive() bool
 	LastUpdated(name string) *time.Time
+	SaveRecord(name string, record map[string]interface{}) error
 }
 
 type DataSet struct {
@@ -197,8 +198,10 @@ func (d DataSet) ValidateRecords(data []interface{}, errors *[]error) {
 	}
 }
 
-func (d DataSet) saveRecord(record interface{}) {
-
+func (d DataSet) saveRecord(r interface{}) {
+	record := r.(map[string]interface{})
+	record["_updated_at"] = time.Now()
+	d.Storage.SaveRecord(d.Name(), record)
 }
 
 func (d DataSet) ParseTimestamps(data []interface{}, errors *[]error) {

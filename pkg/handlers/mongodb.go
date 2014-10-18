@@ -99,3 +99,11 @@ func (m *MongoDataSetStorage) LastUpdated(name string) (t *time.Time) {
 
 	return
 }
+
+func (m *MongoDataSetStorage) SaveRecord(name string, record map[string]interface{}) error {
+	session := getMgoSession(m.URL)
+	defer session.Close()
+	coll := session.DB(m.DatabaseName).C(name)
+
+	return coll.Insert(record)
+}
