@@ -125,11 +125,10 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request, params martini.Params
 }
 
 func ensureIsArray(data interface{}) []interface{} {
-	val := reflect.ValueOf(data)
-	fmt.Println(val.Kind())
-	if val.Kind() == reflect.Array {
+	switch reflect.ValueOf(data).Kind() {
+	case reflect.Array:
 		return data.([]interface{})
-	} else {
+	default:
 		return []interface{}{data}
 	}
 }
