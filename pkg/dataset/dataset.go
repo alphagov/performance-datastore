@@ -120,25 +120,37 @@ func (d DataSet) createIfNecessary() {
 
 func (d DataSet) store(data []interface{}) (errors []error) {
 
-	d.ValidateAgainstSchema(data, &errors)
-	d.ProcessAutoIds(data, &errors)
-	d.ParseTimestamps(data, &errors)
-	d.ValidateRecords(data, &errors)
+	records := unwrap(data)
+
+	d.ValidateAgainstSchema(records, &errors)
+	d.ProcessAutoIds(records, &errors)
+	d.ParseTimestamps(records, &errors)
+	d.ValidateRecords(records, &errors)
 
 	if len(errors) > 0 {
 		return errors
 	}
 
-	d.AddPeriodData(data)
+	d.AddPeriodData(records)
 
-	for _, record := range data {
+	for _, record := range records {
 		d.saveRecord(record)
 	}
 
 	return
 }
 
-func (d DataSet) ValidateAgainstSchema(data []interface{}, errors *[]error) {
+func unwrap(data []interface{}) []map[string]interface{} {
+	records := make([]map[string]interface{}, len(data))
+
+	for i, d := range data {
+		records[i] = d.(map[string]interface{})
+	}
+
+	return records
+}
+
+func (d DataSet) ValidateAgainstSchema(data []map[string]interface{}, errors *[]error) {
 	schema := d.MetaData.Schema
 
 	if schema != nil {
@@ -164,59 +176,48 @@ func (d DataSet) ValidateAgainstSchema(data []interface{}, errors *[]error) {
 	}
 }
 
-func (d DataSet) AddPeriodData(data []interface{}) {
+func (d DataSet) AddPeriodData(data []map[string]interface{}) {
 	for _, r := range data {
 		addPeriodData(r)
 	}
 }
 
-func addPeriodData(r interface{}) {
-	record, ok := r.(map[string]interface{})
-
+func addPeriodData(record map[string]interface{}) {
+	t, ok := record["_timestamp"]
 	if ok {
-		t, ok := record["_timestamp"]
-		if ok {
-			switch t.(type) {
-			case time.Time:
-				{
-					// add other fields based on t
-					v := t.(time.Time)
-					for _, p := range Periods {
-						record[p.FieldName()] = p.Value(v)
-					}
+		switch t.(type) {
+		case time.Time:
+			{
+				// add other fields based on t
+				v := t.(time.Time)
+				for _, p := range Periods {
+					record[p.FieldName()] = p.Value(v)
 				}
-			default:
-				panic("_timestamp is not a time.Time")
 			}
+		default:
+			panic("_timestamp is not a time.Time")
 		}
 	}
 }
 
-func (d DataSet) ValidateRecords(data []interface{}, errors *[]error) {
+func (d DataSet) ValidateRecords(data []map[string]interface{}, errors *[]error) {
 	for _, r := range data {
 		validateRecord(r, errors)
 	}
 }
 
-func (d DataSet) saveRecord(r interface{}) {
-	record := r.(map[string]interface{})
+func (d DataSet) saveRecord(record map[string]interface{}) {
 	record["_updated_at"] = time.Now()
 	d.Storage.SaveRecord(d.Name(), record)
 }
 
-func (d DataSet) ParseTimestamps(data []interface{}, errors *[]error) {
+func (d DataSet) ParseTimestamps(data []map[string]interface{}, errors *[]error) {
 	for _, r := range data {
 		parseTimestamp(r, errors)
 	}
 }
 
-func parseTimestamp(r interface{}, errors *[]error) {
-	record, ok := r.(map[string]interface{})
-	if !ok {
-		*errors = append(*errors, fmt.Errorf("Unable to handle record as map"))
-		return
-	}
-
+func parseTimestamp(record map[string]interface{}, errors *[]error) {
 	current, hasTimestamp := record["_timestamp"]
 
 	if hasTimestamp {
@@ -237,20 +238,14 @@ func tryParseTimestamp(t interface{}) (*time.Time, error) {
 	return nil, fmt.Errorf("_timestamp is not a valid timestamp, it must be ISO8601")
 }
 
-func (d DataSet) ProcessAutoIds(data []interface{}, errors *[]error) interface{} {
+func (d DataSet) ProcessAutoIds(data []map[string]interface{}, errors *[]error) interface{} {
 	if len(d.MetaData.AutoIds) > 0 && len(data) != 0 {
 		return addAutoIds(data, d.MetaData.AutoIds, errors)
 	}
 	return data
 }
 
-func validateRecord(r interface{}, errors *[]error) {
-	record, ok := r.(map[string]interface{})
-	if !ok {
-		*errors = append(*errors, fmt.Errorf("Unable to handle record as map"))
-		return
-	}
-
+func validateRecord(record map[string]interface{}, errors *[]error) {
 	for k, v := range record {
 		if !validation.IsValidKey(k) {
 			*errors = append(*errors, fmt.Errorf("%v is not a valid key", k))
@@ -286,7 +281,7 @@ func validateRecord(r interface{}, errors *[]error) {
 	}
 }
 
-func addAutoIds(data []interface{}, autoIds []string, errors *[]error) interface{} {
+func addAutoIds(data []map[string]interface{}, autoIds []string, errors *[]error) interface{} {
 	for _, record := range data {
 		addAutoId(record, autoIds, errors)
 	}
@@ -294,13 +289,7 @@ func addAutoIds(data []interface{}, autoIds []string, errors *[]error) interface
 	return data
 }
 
-func addAutoId(r interface{}, autoIds []string, errors *[]error) {
-	record, ok := r.(map[string]interface{})
-	if !ok {
-		*errors = append(*errors, fmt.Errorf("Unable to handle record as map"))
-		return
-	}
-
+func addAutoId(record map[string]interface{}, autoIds []string, errors *[]error) {
 	keys := make([]string, len(record))
 	i := 0
 	for k, _ := range record {
@@ -310,7 +299,7 @@ func addAutoId(r interface{}, autoIds []string, errors *[]error) {
 
 	missingIdFields := []string{}
 	for _, id := range autoIds {
-		_, ok = record[id]
+		_, ok := record[id]
 		if !ok {
 			missingIdFields = append(missingIdFields, id)
 		}
