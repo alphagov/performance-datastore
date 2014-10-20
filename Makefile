@@ -1,8 +1,6 @@
 .PHONY: deps test build
 
 BINARY := performance_datastore
-ORG_PATH := github.com/jabley
-REPO_PATH := $(ORG_PATH)/performance-datastore
 
 all: deps fmt test build
 
