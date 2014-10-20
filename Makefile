@@ -16,12 +16,13 @@ fmt:
 
 test:
 	godep go test \
-		$(REPO_PATH) $(REPO_PATH)/pkg/config_api/ \
-		$(REPO_PATH) $(REPO_PATH)/pkg/dataset/ \
-		$(REPO_PATH) $(REPO_PATH)/pkg/handlers/ \
-		$(REPO_PATH) $(REPO_PATH)/pkg/request/ \
-		$(REPO_PATH)/pkg/json_response/ \
-		$(REPO_PATH)/pkg/validation/
+		. \
+		./pkg/config_api/ \
+		./pkg/dataset/ \
+		./pkg/handlers/ \
+		./pkg/request/ \
+		./pkg/json_response/ \
+		./pkg/validation/
 
 build:
 	godep go build -o $(BINARY)

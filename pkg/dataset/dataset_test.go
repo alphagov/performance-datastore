@@ -238,7 +238,7 @@ var _ = Describe("Dataset", func() {
 			expected := map[string]interface{}{"_timestamp": "bar"}
 			Expect([]interface{}{expected}).Should(Equal(records))
 
-			// Currently the go implemenation does the MAY aspect of the spec,
+			// Currently the go implementation does the MAY aspect of the spec,
 			// and doesn't validate formats.
 			// http://tools.ietf.org/html/draft-fge-json-schema-validation-00#section-7.2
 			// We validate that separately ourselves for _timestamp. If other schemas are defined
