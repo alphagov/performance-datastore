@@ -16,8 +16,18 @@ func TestHandlers(t *testing.T) {
 	RunSpecs(t, "Handlers Suite")
 }
 
-func testHandlerServer(handler http.HandlerFunc) *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(handler))
+func testHandlerServer(handler interface{}) *httptest.Server {
+	var h http.Handler
+	switch handler := handler.(type) {
+	case http.Handler:
+		h = handler
+	case func(http.ResponseWriter, *http.Request):
+		h = http.HandlerFunc(handler)
+	default:
+		// error
+		panic("handler cannot be used in an HTTP Server")
+	}
+	return httptest.NewServer(h)
 }
 
 func readResponseBody(response *http.Response) (string, error) {

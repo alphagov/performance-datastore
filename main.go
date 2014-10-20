@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/alext/tablecloth"
-	"github.com/go-martini/martini"
 	"github.com/jabley/performance-datastore/pkg/config_api"
 	"github.com/jabley/performance-datastore/pkg/handlers"
 	"log"
@@ -30,25 +29,13 @@ func main() {
 	handlers.ConfigAPIClient = config_api.NewClient(configAPIURL, bearerToken)
 	handlers.DataSetStorage = handlers.NewMongoStorage(mongoURL, databaseName)
 
-	m := registerRoutes()
-	go serve(":"+port, m, wg)
+	go serve(":"+port, handlers.NewHandler(), wg)
 	wg.Wait()
 }
 
-func serve(addr string, m http.Handler, wg *sync.WaitGroup) {
+func serve(addr string, handler http.Handler, wg *sync.WaitGroup) {
 	defer wg.Done()
-	log.Fatal(tablecloth.ListenAndServe(addr, m))
-}
-
-func registerRoutes() http.Handler {
-	m := martini.Classic()
-	m.Get("/_status", handlers.StatusHandler)
-	m.Get("/_status/data-sets", handlers.DataSetStatusHandler)
-	m.Get("/data/:data_group/:data_type", handlers.DataTypeHandler)
-	m.Options("/data/:data_group/:data_type", handlers.DataTypeHandler)
-	m.Post("/data/:data_group/:data_type", handlers.CreateHandler)
-	m.Put("/data/:data_group/:data_type", handlers.UpdateHandler)
-	return m
+	log.Fatal(tablecloth.ListenAndServe(addr, handler))
 }
 
 func getEnvDefault(key string, defaultVal string) string {

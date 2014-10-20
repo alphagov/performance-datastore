@@ -34,6 +34,17 @@ type WarningResponse struct {
 	Warning string `json:"warning"`
 }
 
+func NewHandler() http.Handler {
+	m := martini.Classic()
+	m.Get("/_status", StatusHandler)
+	m.Get("/_status/data-sets", DataSetStatusHandler)
+	m.Get("/data/:data_group/:data_type", DataTypeHandler)
+	m.Options("/data/:data_group/:data_type", DataTypeHandler)
+	m.Post("/data/:data_group/:data_type", CreateHandler)
+	m.Put("/data/:data_group/:data_type", UpdateHandler)
+	return m
+}
+
 var (
 	// DataSetStorage is the application global for talking to persistent storage
 	// It is like this to allow test implementations to be injected.

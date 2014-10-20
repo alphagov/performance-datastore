@@ -3,6 +3,7 @@ package handlers_test
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 
 	"github.com/jabley/performance-datastore/pkg/config_api"
 	"github.com/jabley/performance-datastore/pkg/dataset"
@@ -49,8 +50,8 @@ type TestConfigAPIClient struct {
 	DataSets []config_api.DataSetMetaData
 }
 
-func NewTestConfigAPIClient(err error, datasets []config_api.DataSetMetaData) config_api.Client {
-	return &TestConfigAPIClient{err, nil, datasets}
+func NewTestConfigAPIClient(err error, metaData *config_api.DataSetMetaData, datasets []config_api.DataSetMetaData) config_api.Client {
+	return &TestConfigAPIClient{err, metaData, datasets}
 }
 
 func (c *TestConfigAPIClient) DataSet(name string) (*config_api.DataSetMetaData, error) {
@@ -110,7 +111,7 @@ var _ = Describe("Healthcheck", func() {
 			testServer := testHandlerServer(handlers.DataSetStatusHandler)
 			defer testServer.Close()
 
-			handlers.ConfigAPIClient = NewTestConfigAPIClient(nil, nil)
+			handlers.ConfigAPIClient = NewTestConfigAPIClient(nil, nil, nil)
 
 			response, err := http.Get(testServer.URL)
 			Expect(err).To(BeNil())
@@ -125,7 +126,7 @@ var _ = Describe("Healthcheck", func() {
 			testServer := testHandlerServer(handlers.DataSetStatusHandler)
 			defer testServer.Close()
 
-			handlers.ConfigAPIClient = NewTestConfigAPIClient(fmt.Errorf("Unable to connect to host"), nil)
+			handlers.ConfigAPIClient = NewTestConfigAPIClient(fmt.Errorf("Unable to connect to host"), nil, nil)
 
 			response, err := http.Get(testServer.URL)
 			Expect(err).To(BeNil())
@@ -140,7 +141,7 @@ var _ = Describe("Healthcheck", func() {
 			testServer := testHandlerServer(handlers.DataSetStatusHandler)
 			defer testServer.Close()
 
-			handlers.ConfigAPIClient = NewTestConfigAPIClient(nil,
+			handlers.ConfigAPIClient = NewTestConfigAPIClient(nil, nil,
 				[]config_api.DataSetMetaData{
 					config_api.DataSetMetaData{},
 					config_api.DataSetMetaData{}})
@@ -163,7 +164,7 @@ var _ = Describe("Healthcheck", func() {
 			maxExpectedAge := int64(8400)
 			stale.MaxExpectedAge = &maxExpectedAge
 
-			handlers.ConfigAPIClient = NewTestConfigAPIClient(nil,
+			handlers.ConfigAPIClient = NewTestConfigAPIClient(nil, nil,
 				[]config_api.DataSetMetaData{
 					config_api.DataSetMetaData{},
 					stale})
@@ -177,5 +178,32 @@ var _ = Describe("Healthcheck", func() {
 			Expect(body).To(Equal(`{"status":"not okay","detail":"1 data-set is out of date"}`))
 
 		})
+	})
+
+	Describe("Creating data", func() {
+		var testServer *httptest.Server
+		var client *http.Client
+		BeforeEach(func() {
+			handler := handlers.NewHandler()
+			testServer = testHandlerServer(handler)
+			client = &http.Client{}
+		})
+
+		AfterEach(func() {
+			defer testServer.Close()
+		})
+
+		Context("When there is no valid Authorization credentials", func() {
+			It("Should fail with an Authorization required response", func() {
+				handlers.ConfigAPIClient = NewTestConfigAPIClient(nil,
+					&config_api.DataSetMetaData{},
+					nil)
+				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
+				response, err := client.Do(req)
+				Expect(err).Should(BeNil())
+				Expect(response.StatusCode).Should(Equal(http.StatusUnauthorized))
+			})
+		})
+
 	})
 })
