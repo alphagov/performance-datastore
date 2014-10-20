@@ -1,15 +1,17 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/go-martini/martini"
 	"github.com/jabley/performance-datastore/pkg/config_api"
 	"github.com/jabley/performance-datastore/pkg/dataset"
-	"github.com/jabley/performance-datastore/pkg/json_response"
 	"github.com/jabley/performance-datastore/pkg/validation"
 	"github.com/quipo/statsd"
 	"gopkg.in/unrolled/render.v1"
+	"io/ioutil"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -91,15 +93,22 @@ func CreateHandler(w http.ResponseWriter, r *http.Request, params martini.Params
 		return
 	}
 
-	_, err = json_response.ParseArray(r.Body)
+	jsonBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		renderError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var data interface{}
+	err = json.Unmarshal(jsonBytes, &data)
 
 	if err != nil {
 		renderError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// errors := dataSet.Append(data)
-	errors := []error{}
+	jsonArray := ensureIsArray(data)
+	errors := dataSet.Append(jsonArray)
 
 	if len(errors) > 0 {
 		renderError(w, http.StatusBadRequest, "All the errors")
@@ -113,6 +122,16 @@ func CreateHandler(w http.ResponseWriter, r *http.Request, params martini.Params
 // PUT /data/:data_group/:data_type
 func UpdateHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
 
+}
+
+func ensureIsArray(data interface{}) []interface{} {
+	val := reflect.ValueOf(data)
+	fmt.Println(val.Kind())
+	if val.Kind() == reflect.Array {
+		return data.([]interface{})
+	} else {
+		return []interface{}{data}
+	}
 }
 
 func fetch(metaData *config_api.DataSetMetaData, w http.ResponseWriter, r *http.Request) {
