@@ -75,6 +75,16 @@ func (m *MongoDataSetStorage) Alive() bool {
 	return len(session.LiveServers()) > 0
 }
 
+func (m *MongoDataSetStorage) Empty(name string) error {
+	session := getMgoSession(m.URL)
+	defer session.Close()
+	session.SetMode(mgo.Monotonic, true)
+
+	coll := session.DB(m.DatabaseName).C(name)
+	_, err := coll.RemoveAll(nil)
+	return err
+}
+
 func (m *MongoDataSetStorage) LastUpdated(name string) (t *time.Time) {
 	session := getMgoSession(m.URL)
 	defer session.Close()

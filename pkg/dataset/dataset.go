@@ -13,6 +13,7 @@ import (
 type DataSetStorage interface {
 	Create(name string, cappedSize int64) error
 	Exists(name string) bool
+	Empty(name string) error
 	Alive() bool
 	LastUpdated(name string) *time.Time
 	SaveRecord(name string, record map[string]interface{}) error
@@ -61,6 +62,11 @@ func (d DataSet) IsStale() (r StalenessResult) {
 func (d DataSet) Append(data []interface{}) []error {
 	d.createIfNecessary()
 	return d.store(data)
+}
+
+func (d DataSet) Empty() error {
+	d.createIfNecessary()
+	return d.Storage.Empty(d.Name())
 }
 
 func (d DataSet) Execute(query Query) (interface{}, error) {
