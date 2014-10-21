@@ -79,6 +79,40 @@ func DataTypeHandler(w http.ResponseWriter, r *http.Request, params martini.Para
 //
 // POST /data/:data_group/:data_type
 func CreateHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
+	handleWriteRequest(w, r, params, func(jsonArray []interface{}, dataSet dataset.DataSet) {
+		errors := dataSet.Append(jsonArray)
+
+		if len(errors) > 0 {
+			renderError(w, http.StatusBadRequest, "All the errors")
+		} else {
+			renderer.JSON(w, http.StatusOK, map[string]string{"status": "OK"})
+		}
+	})
+}
+
+// UpdateHandler is responsible for updating data
+//
+// PUT /data/:data_group/:data_type
+func UpdateHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
+	handleWriteRequest(w, r, params, func(jsonArray []interface{}, dataSet dataset.DataSet) {
+		if len(jsonArray) > 0 {
+			renderError(w, http.StatusBadRequest, "Not implemented: you can only pass an empty JSON list")
+			return
+		}
+		if err := dataSet.Empty(); err != nil {
+			renderError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		renderer.JSON(w, http.StatusOK, map[string]string{
+			"status":  "OK",
+			"message": dataSet.Name() + " now contains 0 records"})
+	})
+}
+
+func handleWriteRequest(w http.ResponseWriter,
+	r *http.Request,
+	params martini.Params,
+	f func(arr []interface{}, ds dataset.DataSet)) {
 	metaData, err := fetchDataMetaData(params["data_group"], params["data_type"])
 	if err != nil {
 		renderError(w, http.StatusInternalServerError, err.Error())
@@ -109,20 +143,7 @@ func CreateHandler(w http.ResponseWriter, r *http.Request, params martini.Params
 	}
 
 	jsonArray := ensureIsArray(data)
-	errors := dataSet.Append(jsonArray)
-
-	if len(errors) > 0 {
-		renderError(w, http.StatusBadRequest, "All the errors")
-	} else {
-		renderer.JSON(w, http.StatusOK, map[string]string{"status": "OK"})
-	}
-}
-
-// UpdateHandler is responsible for updating data
-//
-// PUT /data/:data_group/:data_type
-func UpdateHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
-
+	f(jsonArray, dataSet)
 }
 
 func ensureIsArray(data interface{}) []interface{} {
