@@ -85,10 +85,11 @@ func CreateHandler(w http.ResponseWriter, r *http.Request, params martini.Params
 		return
 	}
 
-	dataSet := dataset.DataSet{nil, *metaData}
+	dataSet := dataset.DataSet{DataSetStorage, *metaData}
 
 	err = validateAuthorization(r, dataSet)
 	if err != nil {
+		w.Header().Add("WWW-Authenticate", "bearer")
 		renderError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
@@ -126,7 +127,7 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request, params martini.Params
 
 func ensureIsArray(data interface{}) []interface{} {
 	switch reflect.ValueOf(data).Kind() {
-	case reflect.Array:
+	case reflect.Array, reflect.Slice:
 		return data.([]interface{})
 	default:
 		return []interface{}{data}

@@ -134,7 +134,9 @@ func (d DataSet) store(data []interface{}) (errors []error) {
 	d.AddPeriodData(records)
 
 	for _, record := range records {
-		d.saveRecord(record)
+		if err := d.saveRecord(record); err != nil {
+			panic(err)
+		}
 	}
 
 	return
@@ -206,9 +208,9 @@ func (d DataSet) ValidateRecords(data []map[string]interface{}, errors *[]error)
 	}
 }
 
-func (d DataSet) saveRecord(record map[string]interface{}) {
+func (d DataSet) saveRecord(record map[string]interface{}) error {
 	record["_updated_at"] = time.Now()
-	d.Storage.SaveRecord(d.Name(), record)
+	return d.Storage.SaveRecord(d.Name(), record)
 }
 
 func (d DataSet) ParseTimestamps(data []map[string]interface{}, errors *[]error) {
