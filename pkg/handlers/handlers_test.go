@@ -9,6 +9,7 @@ import (
 	"github.com/jabley/performance-datastore/pkg/dataset"
 	"github.com/jabley/performance-datastore/pkg/handlers"
 
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -18,6 +19,8 @@ import (
 type TestDataSetStorage struct {
 	alive       bool
 	lastUpdated *time.Time
+	exists      bool
+	error       error
 }
 
 func (mock *TestDataSetStorage) Alive() bool {
@@ -29,7 +32,7 @@ func (mock *TestDataSetStorage) Create(name string, cappedSize int64) error {
 }
 
 func (mock *TestDataSetStorage) Exists(name string) bool {
-	return false
+	return mock.exists
 }
 
 func (mock *TestDataSetStorage) LastUpdated(name string) *time.Time {
@@ -37,11 +40,11 @@ func (mock *TestDataSetStorage) LastUpdated(name string) *time.Time {
 }
 
 func (mock *TestDataSetStorage) SaveRecord(name string, record map[string]interface{}) error {
-	return nil
+	return mock.error
 }
 
-func NewTestDataSetStorage(alive bool, lastUpdated *time.Time) dataset.DataSetStorage {
-	return &TestDataSetStorage{alive, lastUpdated}
+func NewTestDataSetStorage(alive bool, lastUpdated *time.Time, exists bool, err error) dataset.DataSetStorage {
+	return &TestDataSetStorage{alive, lastUpdated, exists, err}
 }
 
 type TestConfigAPIClient struct {
@@ -72,7 +75,7 @@ var _ = Describe("Healthcheck", func() {
 			testServer := testHandlerServer(handlers.StatusHandler)
 			defer testServer.Close()
 
-			handlers.DataSetStorage = NewTestDataSetStorage(true, nil)
+			handlers.DataSetStorage = NewTestDataSetStorage(true, nil, false, nil)
 
 			response, err := http.Get(testServer.URL)
 			Expect(err).To(BeNil())
@@ -87,7 +90,7 @@ var _ = Describe("Healthcheck", func() {
 			testServer := testHandlerServer(handlers.StatusHandler)
 			defer testServer.Close()
 
-			handlers.DataSetStorage = NewTestDataSetStorage(false, nil)
+			handlers.DataSetStorage = NewTestDataSetStorage(false, nil, false, nil)
 
 			response, err := http.Get(testServer.URL)
 			Expect(err).To(BeNil())
@@ -104,7 +107,7 @@ var _ = Describe("Healthcheck", func() {
 
 		BeforeEach(func() {
 			roughly30DaysAgo := time.Now().Add(time.Duration(-24*30) * time.Hour)
-			handlers.DataSetStorage = NewTestDataSetStorage(true, &roughly30DaysAgo)
+			handlers.DataSetStorage = NewTestDataSetStorage(true, &roughly30DaysAgo, false, nil)
 		})
 
 		It("responds with a status of OK when there are no datasets", func() {
@@ -194,7 +197,7 @@ var _ = Describe("Healthcheck", func() {
 		})
 
 		Context("When there is no valid Authorization credentials", func() {
-			It("Should fail with an Authorization required response", func() {
+			It("Should fail with an Authorization required response when there is no Authorization header", func() {
 				handlers.ConfigAPIClient = NewTestConfigAPIClient(nil,
 					&config_api.DataSetMetaData{},
 					nil)
@@ -202,8 +205,101 @@ var _ = Describe("Healthcheck", func() {
 				response, err := client.Do(req)
 				Expect(err).Should(BeNil())
 				Expect(response.StatusCode).Should(Equal(http.StatusUnauthorized))
+				Expect(response.Header.Get("WWW-Authenticate")).Should(Equal("bearer"))
+			})
+
+			It("Should fail with an Authorization required response when the Authorization header isn't a valid bearer token", func() {
+				handlers.ConfigAPIClient = NewTestConfigAPIClient(nil,
+					&config_api.DataSetMetaData{},
+					nil)
+				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
+				req.Header.Add("Authorization", "Not a bearer token")
+				response, err := client.Do(req)
+				Expect(err).Should(BeNil())
+				Expect(response.StatusCode).Should(Equal(http.StatusUnauthorized))
+				Expect(response.Header.Get("WWW-Authenticate")).Should(Equal("bearer"))
+			})
+
+			It("Should fail with an Authorization required response when the Authorization bearer token does not match the data set bearer token", func() {
+				handlers.ConfigAPIClient = NewTestConfigAPIClient(nil,
+					&config_api.DataSetMetaData{},
+					nil)
+				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
+				req.Header.Add("Authorization", "Not a bearer token")
+				response, err := client.Do(req)
+				Expect(err).Should(BeNil())
+				Expect(response.StatusCode).Should(Equal(http.StatusUnauthorized))
+				Expect(response.Header.Get("WWW-Authenticate")).Should(Equal("bearer"))
+			})
+			It("Should fail with an Authorization required response when the Authorization bearer token does not match the data set bearer token", func() {
+				handlers.ConfigAPIClient = NewTestConfigAPIClient(nil,
+					&config_api.DataSetMetaData{BearerToken: "the-bearer-token"},
+					nil)
+				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
+				req.Header.Add("Authorization", "Not a bearer token")
+				response, err := client.Do(req)
+				Expect(err).Should(BeNil())
+				Expect(response.StatusCode).Should(Equal(http.StatusUnauthorized))
+				Expect(response.Header.Get("WWW-Authenticate")).Should(Equal("bearer"))
 			})
 		})
 
+		Context("When there are valid Authorization credentials", func() {
+			BeforeEach(func() {
+				handlers.ConfigAPIClient = NewTestConfigAPIClient(nil,
+					&config_api.DataSetMetaData{BearerToken: "the-bearer-token"},
+					nil)
+			})
+
+			It("Should need a request body", func() {
+				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
+				req.Header.Add("Authorization", "Bearer the-bearer-token")
+				response, err := client.Do(req)
+				Expect(err).Should(BeNil())
+				Expect(response.StatusCode).Should(Equal(http.StatusBadRequest))
+			})
+
+			It("Should need a JSON request body", func() {
+				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
+					strings.NewReader("this is not JSON"))
+				req.Header.Add("Authorization", "Bearer the-bearer-token")
+				response, err := client.Do(req)
+				Expect(err).Should(BeNil())
+				Expect(response.StatusCode).Should(Equal(http.StatusBadRequest))
+			})
+
+			It("Should persist the update for a single object", func() {
+				handlers.DataSetStorage = NewTestDataSetStorage(true, nil, true, nil)
+				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
+					strings.NewReader(`{"animal":"parrot", "status":"pining"}`))
+				req.Header.Add("Authorization", "Bearer the-bearer-token")
+				response, err := client.Do(req)
+				Expect(err).Should(BeNil())
+				Expect(response.StatusCode).Should(Equal(http.StatusOK))
+			})
+
+			It("Should persist the update for an array of objects", func() {
+				handlers.DataSetStorage = NewTestDataSetStorage(true, nil, true, nil)
+				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
+					strings.NewReader(`[
+	{"animal":"parrot", "status":"pining"},
+	{"animal":"fish", "status":"slapping"}
+]`))
+				req.Header.Add("Authorization", "Bearer the-bearer-token")
+				response, err := client.Do(req)
+				Expect(err).Should(BeNil())
+				Expect(response.StatusCode).Should(Equal(http.StatusOK))
+			})
+
+			It("Should propagate failure to persist the updates", func() {
+				handlers.DataSetStorage = NewTestDataSetStorage(true, nil, true, fmt.Errorf("Mongo connection is down"))
+				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
+					strings.NewReader(`{"animal":"parrot", "status":"pining"}`))
+				req.Header.Add("Authorization", "Bearer the-bearer-token")
+				response, err := client.Do(req)
+				Expect(err).Should(BeNil())
+				Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+			})
+		})
 	})
 })
