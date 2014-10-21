@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 )
 
@@ -21,6 +22,7 @@ func main() {
 		mongoURL     = getEnvDefault("MONGO_URL", "localhost")
 		bearerToken  = getEnvDefault("BEARER_TOKEN", "EMPTY")
 		configAPIURL = getEnvDefault("CONFIG_API_URL", "https://stagecraft.production.performance.service.gov.uk/")
+		maxGzipBody  = getEnvDefault("MAX_GZIP_SIZE", "10000000")
 	)
 
 	wg := &sync.WaitGroup{}
@@ -29,7 +31,13 @@ func main() {
 	handlers.ConfigAPIClient = config_api.NewClient(configAPIURL, bearerToken)
 	handlers.DataSetStorage = handlers.NewMongoStorage(mongoURL, databaseName)
 
-	go serve(":"+port, handlers.NewHandler(), wg)
+	maxBody, err := strconv.Atoi(maxGzipBody)
+
+	if err != nil {
+		panic(err)
+	}
+
+	go serve(":"+port, handlers.NewHandler(maxBody), wg)
 	wg.Wait()
 }
 

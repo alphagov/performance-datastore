@@ -36,8 +36,9 @@ type WarningResponse struct {
 	Warning string `json:"warning"`
 }
 
-func NewHandler() http.Handler {
+func NewHandler(maxGzipBody int) http.Handler {
 	m := martini.Classic()
+	m.Use(NewDecompressingHandler(maxGzipBody))
 	m.Get("/_status", StatusHandler)
 	m.Get("/_status/data-sets", DataSetStatusHandler)
 	m.Get("/data/:data_group/:data_type", DataTypeHandler)
