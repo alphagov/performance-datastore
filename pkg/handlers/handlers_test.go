@@ -1,6 +1,8 @@
 package handlers_test
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -211,7 +213,7 @@ var _ = Describe("Healthcheck", func() {
 		var testServer *httptest.Server
 		var client *http.Client
 		BeforeEach(func() {
-			handler := handlers.NewHandler()
+			handler := handlers.NewHandler(10000000)
 			testServer = testHandlerServer(handler)
 			client = &http.Client{}
 		})
@@ -324,6 +326,59 @@ var _ = Describe("Healthcheck", func() {
 				Expect(err).Should(BeNil())
 				Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
 			})
+
+			Context("With compressed requests", func() {
+				It("Should fail if the request does not have a Content-Encoding header", func() {
+					handlers.DataSetStorage = NewTestDataSetStorage(true, nil, true, nil)
+
+					var b bytes.Buffer
+					w := gzip.NewWriter(&b)
+					w.Write([]byte(`{"animal":"parrot", "status":"pining"}`))
+					w.Close()
+					req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
+						bytes.NewReader(b.Bytes()))
+					req.Header.Add("Authorization", "Bearer the-bearer-token")
+					response, err := client.Do(req)
+					Expect(err).Should(BeNil())
+					Expect(response.StatusCode).Should(Equal(http.StatusBadRequest))
+				})
+
+				It("Should succeed if the request has a Content-Encoding header", func() {
+					handlers.DataSetStorage = NewTestDataSetStorage(true, nil, true, nil)
+
+					var b bytes.Buffer
+					w := gzip.NewWriter(&b)
+					w.Write([]byte(`{"animal":"parrot", "status":"pining"}`))
+					w.Close()
+					req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
+						bytes.NewReader(b.Bytes()))
+					req.Header.Add("Authorization", "Bearer the-bearer-token")
+					req.Header.Add("Content-Encoding", "gzip")
+					response, err := client.Do(req)
+					Expect(err).Should(BeNil())
+					Expect(response.StatusCode).Should(Equal(http.StatusOK))
+				})
+
+				It("Should fail if the request is too big", func() {
+					testServer.Close()
+					handler := handlers.NewHandler(10)
+					testServer = testHandlerServer(handler)
+
+					handlers.DataSetStorage = NewTestDataSetStorage(true, nil, true, nil)
+
+					var b bytes.Buffer
+					w := gzip.NewWriter(&b)
+					w.Write([]byte(`{"animal":"parrot", "status":"pining"}`))
+					w.Close()
+					req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
+						bytes.NewReader(b.Bytes()))
+					req.Header.Add("Authorization", "Bearer the-bearer-token")
+					req.Header.Add("Content-Encoding", "gzip")
+					response, err := client.Do(req)
+					Expect(err).Should(BeNil())
+					Expect(response.StatusCode).Should(Equal(http.StatusRequestEntityTooLarge))
+				})
+			})
 		})
 	})
 
@@ -331,7 +386,7 @@ var _ = Describe("Healthcheck", func() {
 		var testServer *httptest.Server
 		var client *http.Client
 		BeforeEach(func() {
-			handler := handlers.NewHandler()
+			handler := handlers.NewHandler(10000000)
 			testServer = testHandlerServer(handler)
 			client = &http.Client{}
 		})
