@@ -96,14 +96,22 @@ func Unmarshal(body io.ReadCloser) map[string]interface{} {
 }
 
 var _ = Describe("Healthcheck", func() {
+
+	var testServer *httptest.Server
+
+	BeforeEach(func() {
+		testServer = testHandlerServer(handlers.NewHandler(10000000))
+	})
+
+	AfterEach(func() {
+		testServer.Close()
+	})
+
 	Describe("Status", func() {
 		It("responds with a status of OK", func() {
-			testServer := testHandlerServer(handlers.StatusHandler)
-			defer testServer.Close()
-
 			handlers.DataSetStorage = NewTestDataSetStorage(true, nil, false, nil)
 
-			response, err := http.Get(testServer.URL)
+			response, err := http.Get(testServer.URL + "/_status")
 			Expect(err).To(BeNil())
 			Expect(response.StatusCode).To(Equal(http.StatusOK))
 
@@ -113,12 +121,9 @@ var _ = Describe("Healthcheck", func() {
 		})
 
 		It("responds with a status of ruh roh when the storage is down", func() {
-			testServer := testHandlerServer(handlers.StatusHandler)
-			defer testServer.Close()
-
 			handlers.DataSetStorage = NewTestDataSetStorage(false, nil, false, nil)
 
-			response, err := http.Get(testServer.URL)
+			response, err := http.Get(testServer.URL + "/_status")
 			Expect(err).To(BeNil())
 			Expect(response.StatusCode).To(Equal(http.StatusInternalServerError))
 
@@ -127,6 +132,26 @@ var _ = Describe("Healthcheck", func() {
 			Expect(body).To(Equal(`{"errors":[{"detail":"cannot connect to database"}]}`))
 		})
 
+		It("responds to HEAD requests", func() {
+			handlers.DataSetStorage = NewTestDataSetStorage(true, nil, false, nil)
+
+			response, err := http.Head(testServer.URL + "/_status")
+			Expect(err).To(BeNil())
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+		})
+
+		It("does not respond to POST requests", func() {
+			handlers.DataSetStorage = NewTestDataSetStorage(true, nil, false, nil)
+
+			response, err := http.Post(testServer.URL+"/_status",
+				"application/json",
+				strings.NewReader(`{"foo":"foo"}`))
+			Expect(err).To(BeNil())
+			// This is the preferred implementation but Martini routing doesn't do
+			// that – yet!
+			// Expect(response.StatusCode).To(Equal(http.StatusMethodNotAllowed))
+			Expect(response.StatusCode).To(Equal(http.StatusNotFound))
+		})
 	})
 
 	Describe("DataSets", func() {
