@@ -38,8 +38,13 @@ type WarningResponse struct {
 
 func NewHandler(maxGzipBody int) http.Handler {
 	m := martini.Classic()
-	m.Use(NewDecompressingHandler(maxGzipBody))
+	m.Handlers(
+		martini.Logger(),
+		NewRecoveryHandler(),
+		martini.Static("public"),
+		NewDecompressingHandler(maxGzipBody))
 	m.Get("/_status", StatusHandler)
+	m.Post("/_status", MethodNotAllowedHandler)
 	m.Get("/_status/data-sets", DataSetStatusHandler)
 	m.Get("/data/:data_group/:data_type", DataTypeHandler)
 	m.Options("/data/:data_group/:data_type", DataTypeHandler)
@@ -59,6 +64,11 @@ var (
 	renderer     = render.New(render.Options{})
 	statsdClient = newStatsDClient("localhost:8125", "datastore.")
 )
+
+func MethodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
+	renderError(w, http.StatusMethodNotAllowed,
+		"Method "+r.Method+" not allowed for <"+r.URL.RequestURI()+">")
+}
 
 // DataTypeHandler is responsible for serving data type meta data
 //
@@ -114,6 +124,7 @@ func handleWriteRequest(w http.ResponseWriter,
 	r *http.Request,
 	params martini.Params,
 	f func(arr []interface{}, ds dataset.DataSet)) {
+
 	metaData, err := fetchDataMetaData(params["data_group"], params["data_type"])
 	if err != nil {
 		renderError(w, http.StatusInternalServerError, err.Error())
@@ -135,11 +146,16 @@ func handleWriteRequest(w http.ResponseWriter,
 		return
 	}
 
+	if len(jsonBytes) == 0 {
+		renderError(w, http.StatusBadRequest, "Expected JSON request body but received zero bytes")
+		return
+	}
+
 	var data interface{}
 	err = json.Unmarshal(jsonBytes, &data)
 
 	if err != nil {
-		renderError(w, http.StatusBadRequest, err.Error())
+		renderError(w, http.StatusBadRequest, "Error parsing JSON: "+err.Error())
 		return
 	}
 
@@ -220,7 +236,7 @@ func validateAuthorization(r *http.Request, dataSet dataset.DataSet) (err error)
 	authorization := r.Header.Get("Authorization")
 
 	if len(authorization) == 0 {
-		return fmt.Errorf("Expected header of form: Authorization: Bearer <token>")
+		return fmt.Errorf("Expected header of form: Authorization: Bearer token")
 	}
 
 	token, valid := extractBearerToken(dataSet, authorization)
