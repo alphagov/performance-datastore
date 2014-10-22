@@ -3,12 +3,13 @@
 	"GoVersion": "go1.3.1",
 	"Deps": [
 		{
-			"ImportPath": "github.com/alext/tablecloth",
-			"Rev": "b373a9a6ff0ebb8953da0681db7a72202c73e2ef"
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.5.1-33-g3d46664",
+			"Rev": "3d46664b062c3a468b50e367f115179e26a9462c"
 		},
 		{
-			"ImportPath": "github.com/cenkalti/backoff",
-			"Rev": "9b3b0d8135f565e3777f12db974d1c54c5b02d47"
+			"ImportPath": "github.com/alext/tablecloth",
+			"Rev": "b373a9a6ff0ebb8953da0681db7a72202c73e2ef"
 		},
 		{
 			"ImportPath": "github.com/codegangsta/inject",

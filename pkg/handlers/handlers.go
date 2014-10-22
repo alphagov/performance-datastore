@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/go-martini/martini"
 	"github.com/jabley/performance-datastore/pkg/config_api"
 	"github.com/jabley/performance-datastore/pkg/dataset"
@@ -36,13 +37,14 @@ type WarningResponse struct {
 	Warning string `json:"warning"`
 }
 
-func NewHandler(maxGzipBody int) http.Handler {
+func NewHandler(maxGzipBody int, logger *logrus.Logger) http.Handler {
 	m := martini.Classic()
+	m.Map(logger)
 	m.Handlers(
-		martini.Logger(),
+		NewLoggingMiddleware(),
 		NewRecoveryHandler(),
 		martini.Static("public"),
-		NewDecompressingHandler(maxGzipBody))
+		NewDecompressingMiddleware(maxGzipBody))
 	m.Get("/_status", StatusHandler)
 	m.Post("/_status", MethodNotAllowedHandler)
 	m.Get("/_status/data-sets", DataSetStatusHandler)
@@ -61,8 +63,10 @@ var (
 	// ConfigAPIClient allows the client to be injected for testing purposes
 	ConfigAPIClient config_api.Client
 
-	renderer     = render.New(render.Options{})
-	statsdClient = newStatsDClient("localhost:8125", "datastore.")
+	// StatsdClient allows the statsd implementation to be injected for testing purposes
+	StatsdClient statsd.Statsd
+
+	renderer = render.New(render.Options{})
 )
 
 func MethodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
@@ -89,8 +93,8 @@ func DataTypeHandler(w http.ResponseWriter, r *http.Request, params martini.Para
 // CreateHandler is responsible for creating data
 //
 // POST /data/:data_group/:data_type
-func CreateHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
-	handleWriteRequest(w, r, params, func(jsonArray []interface{}, dataSet dataset.DataSet) {
+func CreateHandler(c martini.Context, w http.ResponseWriter, r *http.Request, params martini.Params) {
+	handleWriteRequest(c, w, r, params, func(jsonArray []interface{}, dataSet dataset.DataSet) {
 		errors := dataSet.Append(jsonArray)
 
 		if len(errors) > 0 {
@@ -104,8 +108,8 @@ func CreateHandler(w http.ResponseWriter, r *http.Request, params martini.Params
 // UpdateHandler is responsible for updating data
 //
 // PUT /data/:data_group/:data_type
-func UpdateHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
-	handleWriteRequest(w, r, params, func(jsonArray []interface{}, dataSet dataset.DataSet) {
+func UpdateHandler(c martini.Context, w http.ResponseWriter, r *http.Request, params martini.Params) {
+	handleWriteRequest(c, w, r, params, func(jsonArray []interface{}, dataSet dataset.DataSet) {
 		if len(jsonArray) > 0 {
 			renderError(w, http.StatusBadRequest, "Not implemented: you can only pass an empty JSON list")
 			return
@@ -120,7 +124,9 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request, params martini.Params
 	})
 }
 
-func handleWriteRequest(w http.ResponseWriter,
+func handleWriteRequest(
+	c martini.Context,
+	w http.ResponseWriter,
 	r *http.Request,
 	params martini.Params,
 	f func(arr []interface{}, ds dataset.DataSet)) {
@@ -132,6 +138,7 @@ func handleWriteRequest(w http.ResponseWriter,
 	}
 
 	dataSet := dataset.DataSet{DataSetStorage, *metaData}
+	c.Map(dataSet)
 
 	err = validateAuthorization(r, dataSet)
 	if err != nil {
@@ -261,7 +268,7 @@ func renderError(w http.ResponseWriter, status int, errorString string) {
 	renderer.JSON(w, status, &errorResponse{Errors: []*ErrorInfo{&ErrorInfo{Detail: errorString}}})
 }
 
-func newStatsDClient(host, prefix string) *statsd.StatsdClient {
+func NewStatsDClient(host, prefix string) *statsd.StatsdClient {
 	statsdClient := statsd.NewStatsdClient(host, prefix)
 	statsdClient.CreateSocket()
 
@@ -269,7 +276,7 @@ func newStatsDClient(host, prefix string) *statsd.StatsdClient {
 }
 
 func statsDTiming(label string, start, end time.Time) {
-	statsdClient.Timing("time."+label,
+	StatsdClient.Timing("time."+label,
 		int64(end.Sub(start)/time.Millisecond))
 }
 

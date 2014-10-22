@@ -3,9 +3,9 @@ package handlers
 import (
 	"compress/gzip"
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/go-martini/martini"
 	"io"
-	"log"
 	"net/http"
 )
 
@@ -15,6 +15,7 @@ type gzipReader struct {
 	maxSize   int                 // maximum size gzip request that we'll handle. Used to defend against zip bombs
 	readBytes int                 // the number bytes that have been read by this gzipReader
 	response  http.ResponseWriter // the context http.ResponseWriter
+	logger    *logrus.Logger
 }
 
 func (gz *gzipReader) Read(p []byte) (n int, err error) {
@@ -30,6 +31,7 @@ func (gz *gzipReader) Read(p []byte) (n int, err error) {
 	gz.readBytes += n
 
 	if gz.readBytes > gz.maxSize {
+		gz.logger.Infof("Exceeded gzip decompression limit (%s) - aborting", gz.maxSize)
 		gz.response.WriteHeader(http.StatusRequestEntityTooLarge)
 		return 0, fmt.Errorf("Maximum upload size encounted. Treating as a potential zip bomb.")
 	}
@@ -41,12 +43,13 @@ func (gz *gzipReader) Close() error {
 	return gz.body.Close()
 }
 
-func NewDecompressingHandler(maxSize int) martini.Handler {
-	return func(res http.ResponseWriter, req *http.Request, c martini.Context, log *log.Logger) {
+func NewDecompressingMiddleware(maxSize int) martini.Handler {
+	return func(res http.ResponseWriter, req *http.Request, c martini.Context, logger *logrus.Logger) {
 		contentEncoding := req.Header["Content-Encoding"]
 		for _, v := range contentEncoding {
 			if v == "gzip" {
-				req.Body = &gzipReader{body: req.Body, maxSize: maxSize, response: res}
+				logger.Debugln("Decompressing request")
+				req.Body = &gzipReader{body: req.Body, maxSize: maxSize, response: res, logger: logger}
 			}
 		}
 
