@@ -2,11 +2,11 @@ package request
 
 import (
 	"errors"
-	// "fmt"
-	// "github.com/cenkalti/backoff"
+	"fmt"
+	"github.com/cenkalti/backoff"
 	"io/ioutil"
 	"net/http"
-	// "time"
+	"time"
 )
 
 var (
@@ -44,25 +44,37 @@ func ReadResponseBody(response *http.Response) ([]byte, error) {
 }
 
 func tryGet(client http.Client, req *http.Request) (res *http.Response, err error) {
-	// operation := func() error {
-	res, httpErr := client.Do(req)
-	// 	if httpErr != nil {
-	// 		return httpErr
-	// 	}
-	// 	switch res.StatusCode {
-	// 	case 502, 503:
-	// 		return fmt.Errorf("Server unavailable")
-	// 	}
-	// 	return nil
-	// }
+	// Use a channel to communicate between the goroutines. We use a channel rather
+	// than simple variable closure since that's how Go works :)
+	c := make(chan *http.Response, 1)
 
-	// expo := backoff.NewExponentialBackOff()
-	// expo.MaxElapsedTime = (5 * time.Second)
-	// err = backoff.Retry(operation, expo)
-	// if err != nil {
-	// 	// Operation has failed.
-	// 	return nil, err
-	// }
+	operation := func() error {
+		response, httpError := client.Do(req)
+		if httpError != nil {
+			return httpError
+		}
+		switch response.StatusCode {
+		case 502, 503:
+			// Oh dear, we'll retry that one
+			return fmt.Errorf("Server unavailable")
+		}
 
-	return res, httpErr
+		// We're good, keep the returned response
+		c <- response
+		return nil
+	}
+
+	expo := backoff.NewExponentialBackOff()
+	expo.MaxElapsedTime = (5 * time.Second)
+	err = backoff.Retry(operation, expo)
+
+	if err != nil {
+		// Operation has failed, repeatedly got a problem or server unavailable
+		return nil, err
+	}
+
+	// Got a good response, take it out of the channel
+	res = <-c
+
+	return res, err
 }

@@ -12,6 +12,10 @@
 			"Rev": "b373a9a6ff0ebb8953da0681db7a72202c73e2ef"
 		},
 		{
+			"ImportPath": "github.com/cenkalti/backoff",
+			"Rev": "9b3b0d8135f565e3777f12db974d1c54c5b02d47"
+		},
+		{
 			"ImportPath": "github.com/codegangsta/inject",
 			"Comment": "v1.0-rc1-4-g4b81725",
 			"Rev": "4b8172520a03fa190f427bbd284db01b459bfce7"
