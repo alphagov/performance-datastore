@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
+	"reflect"
 	"runtime"
 
-	"github.com/codegangsta/inject"
+	"github.com/Sirupsen/logrus"
 	"github.com/go-martini/martini"
+	"github.com/jabley/performance-datastore/pkg/dataset"
 )
 
 const (
@@ -114,34 +115,35 @@ func function(pc uintptr) []byte {
 // Recovery returns a middleware that recovers from any panics and writes a 500 if there was one.
 // While Martini is in development mode, Recovery will also output the panic as HTML.
 func NewRecoveryHandler() martini.Handler {
-	return func(c martini.Context, log *log.Logger) {
+	return func(w http.ResponseWriter, req *http.Request, c martini.Context, logger *logrus.Logger) {
 		defer func() {
 			if err := recover(); err != nil {
 				stack := stack(3)
-				log.Printf("PANIC: %s\n%s", err, stack)
+				logger.Printf("PANIC: %s\n%s", err, stack)
 
-				// Lookup the current responsewriter
-				val := c.Get(inject.InterfaceOf((*http.ResponseWriter)(nil)))
-				res := val.Interface().(http.ResponseWriter)
+				StatsdClient.Incr("write.error."+datasetNameOrPath(c, req), 1)
 
 				// respond with panic message while in development mode
 				if martini.Env == martini.Dev {
-					res.Header().Set("Content-Type", "text/html")
+					w.Header().Set("Content-Type", "text/html")
 					body := []byte(fmt.Sprintf(panicHtml, err, err, stack))
-					res.WriteHeader(http.StatusInternalServerError)
-					res.Write(body)
+					w.WriteHeader(http.StatusInternalServerError)
+					w.Write(body)
 				} else {
-					res.Header().Set("Content-Type", "application/json")
-					if problem, ok := err.(runtime.Error); ok {
-						renderError(res, http.StatusInternalServerError, problem.Error())
-					} else {
-						renderError(res, http.StatusInternalServerError, fmt.Sprintf("%v", err))
-					}
-
+					w.Header().Set("Content-Type", "application/json")
+					renderError(w, http.StatusInternalServerError, fmt.Sprintf("%v", err))
 				}
 			}
 		}()
 
 		c.Next()
 	}
+}
+
+func datasetNameOrPath(c martini.Context, req *http.Request) string {
+	val := c.Get(reflect.TypeOf(dataset.DataSet{}))
+	if val.IsValid() {
+		return val.Interface().(dataset.DataSet).Name()
+	}
+	return req.URL.Path
 }

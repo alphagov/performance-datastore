@@ -1,10 +1,10 @@
 package main
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/alext/tablecloth"
 	"github.com/jabley/performance-datastore/pkg/config_api"
 	"github.com/jabley/performance-datastore/pkg/handlers"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -23,6 +23,8 @@ func main() {
 		bearerToken  = getEnvDefault("BEARER_TOKEN", "EMPTY")
 		configAPIURL = getEnvDefault("CONFIG_API_URL", "https://stagecraft.production.performance.service.gov.uk/")
 		maxGzipBody  = getEnvDefault("MAX_GZIP_SIZE", "10000000")
+		logLevel     = getEnvDefault("LOG_LEVEL", "info")
+		logger       = newLog(logLevel)
 	)
 
 	wg := &sync.WaitGroup{}
@@ -30,20 +32,21 @@ func main() {
 
 	handlers.ConfigAPIClient = config_api.NewClient(configAPIURL, bearerToken)
 	handlers.DataSetStorage = handlers.NewMongoStorage(mongoURL, databaseName)
+	handlers.StatsdClient = handlers.NewStatsDClient("localhost:8125", "datastore.")
 
 	maxBody, err := strconv.Atoi(maxGzipBody)
 
 	if err != nil {
-		panic(err)
+		logger.Fatal(err)
 	}
 
-	go serve(":"+port, handlers.NewHandler(maxBody), wg)
+	go serve(":"+port, handlers.NewHandler(maxBody, logger), wg, logger)
 	wg.Wait()
 }
 
-func serve(addr string, handler http.Handler, wg *sync.WaitGroup) {
+func serve(addr string, handler http.Handler, wg *sync.WaitGroup, logger *logrus.Logger) {
 	defer wg.Done()
-	log.Fatal(tablecloth.ListenAndServe(addr, handler))
+	logger.Fatal(tablecloth.ListenAndServe(addr, handler))
 }
 
 func getEnvDefault(key string, defaultVal string) string {
@@ -53,4 +56,18 @@ func getEnvDefault(key string, defaultVal string) string {
 	}
 
 	return val
+}
+
+func newLog(level string) *logrus.Logger {
+	logger := logrus.New()
+	levelConst, err := logrus.ParseLevel(level)
+
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	logger.Level = levelConst
+	logger.Formatter = &logrus.JSONFormatter{}
+
+	return logger
 }
