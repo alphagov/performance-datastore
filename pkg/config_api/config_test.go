@@ -252,13 +252,13 @@ var _ = Describe("Config API", func() {
 			})
 		})
 
-    Describe("DataType", func() {
-      It("responds with a status of OK", func() {
+		Describe("DataType", func() {
+			It("responds with a status of OK", func() {
 
-        server.RouteToHandler("GET", "/data-sets",
-          ghttp.CombineHandlers(
-            ghttp.VerifyRequest("GET", "/data-sets"),
-            ghttp.RespondWith(http.StatusOK, `
+				server.RouteToHandler("GET", "/data-sets",
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/data-sets"),
+						ghttp.RespondWith(http.StatusOK, `
 [
  {
   "name": "evl_channel_volumetrics",
@@ -305,39 +305,39 @@ var _ = Describe("Config API", func() {
  }
 ]`)))
 
-        metaData, err := client.DataType("vehicle-licensing", "channels")
-        Expect(metaData).ToNot(BeNil())
-        Expect(err).To(BeNil())
+				metaData, err := client.DataType("vehicle-licensing", "channels")
+				Expect(metaData).ToNot(BeNil())
+				Expect(err).To(BeNil())
 
-        Expect(metaData.Name).To(Equal("evl_channel_volumetrics"))
-        Expect(metaData.DataGroup).To(Equal("vehicle-licensing"))
-        Expect(metaData.DataType).To(Equal("channels"))
-        Expect(metaData.AllowRawQueries).To(Equal(false))
-        Expect(metaData.BearerToken).To(Equal("another-woo-hoo"))
-        Expect(metaData.UploadFormat).To(Equal("excel"))
-        Expect(len(metaData.UploadFilters)).To(Equal(2))
-        Expect(metaData.UploadFilters[0]).To(Equal("backdrop.core.upload.filters.first_sheet_filter"))
-        Expect(metaData.UploadFilters[1]).To(Equal("backdrop.contrib.evl_upload_filters.channel_volumetrics"))
-        Expect(len(metaData.AutoIds)).To(Equal(0))
-        Expect(metaData.Queryable).To(Equal(true))
-        Expect(metaData.Realtime).To(Equal(false))
-        Expect(metaData.CappedSize).To(Equal(int64(0)))
-        Expect(*(metaData.MaxExpectedAge)).To(Equal(int64(2678400)))
-        Expect(metaData.Published).To(Equal(true))
-        Expect(metaData.Schema).ToNot(BeNil())
-      })
+				Expect(metaData.Name).To(Equal("evl_channel_volumetrics"))
+				Expect(metaData.DataGroup).To(Equal("vehicle-licensing"))
+				Expect(metaData.DataType).To(Equal("channels"))
+				Expect(metaData.AllowRawQueries).To(Equal(false))
+				Expect(metaData.BearerToken).To(Equal("another-woo-hoo"))
+				Expect(metaData.UploadFormat).To(Equal("excel"))
+				Expect(len(metaData.UploadFilters)).To(Equal(2))
+				Expect(metaData.UploadFilters[0]).To(Equal("backdrop.core.upload.filters.first_sheet_filter"))
+				Expect(metaData.UploadFilters[1]).To(Equal("backdrop.contrib.evl_upload_filters.channel_volumetrics"))
+				Expect(len(metaData.AutoIds)).To(Equal(0))
+				Expect(metaData.Queryable).To(Equal(true))
+				Expect(metaData.Realtime).To(Equal(false))
+				Expect(metaData.CappedSize).To(Equal(int64(0)))
+				Expect(*(metaData.MaxExpectedAge)).To(Equal(int64(2678400)))
+				Expect(metaData.Published).To(Equal(true))
+				Expect(metaData.Schema).ToNot(BeNil())
+			})
 
-      It("gracefully handles failure in remote API", func() {
-        server.RouteToHandler("GET", "/data-sets",
-          ghttp.CombineHandlers(
-            ghttp.VerifyRequest("GET", "/data-sets"),
-            ghttp.RespondWith(http.StatusInternalServerError, ``)))
+			It("gracefully handles failure in remote API", func() {
+				server.RouteToHandler("GET", "/data-sets",
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/data-sets"),
+						ghttp.RespondWith(http.StatusInternalServerError, ``)))
 
-        metaData, err := client.DataType("vehicle-licensing", "channels")
-        Expect(metaData).To(BeNil())
-        Expect(err).ToNot(BeNil())
-      })
-    })
+				metaData, err := client.DataType("vehicle-licensing", "channels")
+				Expect(metaData).To(BeNil())
+				Expect(err).ToNot(BeNil())
+			})
+		})
 
 	})
 
