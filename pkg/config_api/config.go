@@ -56,18 +56,21 @@ func (c *defaultClient) DataSet(name string) (*DataSetMetaData, error) {
 }
 
 func (c *defaultClient) DataType(group string, dataType string) (*DataSetMetaData, error) {
-	// res, err := c.get("/data-sets?data-group=" + group + "&data-type=" + dataType)
+	res, err := c.get("/data-sets?data-group=" + group + "&data-type=" + dataType)
 
-	// if err != nil {
-	// 	return nil, err
-	// }
+	if err != nil {
+		return nil, err
+	}
 
-	// 	if res != nil && len(res) > 0 {
-	// 		return res[0].(map[string]interface{}), nil
-	// 	}
-	// 	return nil, fmt.Errorf("No such data set")
-	// }
-	return nil, nil
+	d := []DataSetMetaData{}
+
+	err = json.Unmarshal(res, &d)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &d[0], nil
 }
 
 func (c *defaultClient) ListDataSets() ([]DataSetMetaData, error) {

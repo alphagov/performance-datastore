@@ -250,8 +250,95 @@ var _ = Describe("Config API", func() {
 				Expect(metaData).To(BeNil())
 				Expect(err).ToNot(BeNil())
 			})
-
 		})
+
+    Describe("DataType", func() {
+      It("responds with a status of OK", func() {
+
+        server.RouteToHandler("GET", "/data-sets",
+          ghttp.CombineHandlers(
+            ghttp.VerifyRequest("GET", "/data-sets"),
+            ghttp.RespondWith(http.StatusOK, `
+[
+ {
+  "name": "evl_channel_volumetrics",
+  "data_group": "vehicle-licensing",
+  "data_type": "channels",
+  "raw_queries_allowed": false,
+  "bearer_token": "another-woo-hoo",
+  "upload_format": "excel",
+  "upload_filters": [
+   "backdrop.core.upload.filters.first_sheet_filter",
+   "backdrop.contrib.evl_upload_filters.channel_volumetrics"
+  ],
+  "auto_ids": [],
+  "queryable": true,
+  "realtime": false,
+  "capped_size": 0,
+  "max_age_expected": 2678400,
+  "published": true,
+  "schema": {
+   "definitions": {
+    "_timestamp": {
+     "$schema": "http://json-schema.org/schema#",
+     "required": [
+      "_timestamp"
+     ],
+     "type": "object",
+     "properties": {
+      "_timestamp": {
+       "type": "string",
+       "description": "An ISO8601 formatted date time",
+       "format": "date-time"
+      }
+     },
+     "title": "Timestamps"
+    }
+   },
+   "description": "Schema for vehicle-licensing/channels",
+   "allOf": [
+    {
+     "$ref": "#/definitions/_timestamp"
+    }
+   ]
+  }
+ }
+]`)))
+
+        metaData, err := client.DataType("vehicle-licensing", "channels")
+        Expect(metaData).ToNot(BeNil())
+        Expect(err).To(BeNil())
+
+        Expect(metaData.Name).To(Equal("evl_channel_volumetrics"))
+        Expect(metaData.DataGroup).To(Equal("vehicle-licensing"))
+        Expect(metaData.DataType).To(Equal("channels"))
+        Expect(metaData.AllowRawQueries).To(Equal(false))
+        Expect(metaData.BearerToken).To(Equal("another-woo-hoo"))
+        Expect(metaData.UploadFormat).To(Equal("excel"))
+        Expect(len(metaData.UploadFilters)).To(Equal(2))
+        Expect(metaData.UploadFilters[0]).To(Equal("backdrop.core.upload.filters.first_sheet_filter"))
+        Expect(metaData.UploadFilters[1]).To(Equal("backdrop.contrib.evl_upload_filters.channel_volumetrics"))
+        Expect(len(metaData.AutoIds)).To(Equal(0))
+        Expect(metaData.Queryable).To(Equal(true))
+        Expect(metaData.Realtime).To(Equal(false))
+        Expect(metaData.CappedSize).To(Equal(int64(0)))
+        Expect(*(metaData.MaxExpectedAge)).To(Equal(int64(2678400)))
+        Expect(metaData.Published).To(Equal(true))
+        Expect(metaData.Schema).ToNot(BeNil())
+      })
+
+      It("gracefully handles failure in remote API", func() {
+        server.RouteToHandler("GET", "/data-sets",
+          ghttp.CombineHandlers(
+            ghttp.VerifyRequest("GET", "/data-sets"),
+            ghttp.RespondWith(http.StatusInternalServerError, ``)))
+
+        metaData, err := client.DataType("vehicle-licensing", "channels")
+        Expect(metaData).To(BeNil())
+        Expect(err).ToNot(BeNil())
+      })
+    })
+
 	})
 
 })
