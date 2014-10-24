@@ -1,20 +1,17 @@
-[![Build Status](https://travis-ci.org/jabley/performance-datastore.svg?branch=master)](https://travis-ci.org/jabley/performance-datastore)
+[![Build Status](https://travis-ci.org/alphagov/performance-datastore.svg?branch=master)](https://travis-ci.org/alphagov/performance-datastore)
 
 # Overview
 
 Basic sketches around doing an API in Go for the Performance Platform
 datastore.
 
-Used for me exploring Go as an implementation language for servers
-and sketching out what I'd like the API to look like.
+This is a work in progress to think in code and explore what the new,
+supported API for the Performance Platform should look like. It is
+not production code that we currently rely on.
 
 # Usage
 
-`make release` will build the project with concrete versions of the
-dependencies.
-
-`make` will build the project using the latest versions of all the
-dependencies.
+`make` will build the project.
 
 There are various environment variables used to control what the
 application will try to use for things like Mongo connection,
