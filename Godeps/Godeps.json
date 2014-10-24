@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/jabley/performance-datastore",
+	"ImportPath": "github.com/alphagov/performance-datastore",
 	"GoVersion": "go1.3.1",
 	"Deps": [
 		{

@@ -2,8 +2,8 @@ package dataset_test
 
 import (
 	"encoding/json"
-	"github.com/jabley/performance-datastore/pkg/config_api"
-	. "github.com/jabley/performance-datastore/pkg/dataset"
+	"github.com/alphagov/performance-datastore/pkg/config_api"
+	. "github.com/alphagov/performance-datastore/pkg/dataset"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"time"

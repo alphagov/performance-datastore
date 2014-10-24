@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 
-	. "github.com/jabley/performance-datastore/pkg/request"
+	. "github.com/alphagov/performance-datastore/pkg/request"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

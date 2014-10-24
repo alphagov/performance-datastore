@@ -4,8 +4,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/jabley/performance-datastore/pkg/config_api"
-	"github.com/jabley/performance-datastore/pkg/validation"
+	"github.com/alphagov/performance-datastore/pkg/config_api"
+	"github.com/alphagov/performance-datastore/pkg/validation"
 	"github.com/xeipuuv/gojsonschema"
 	"time"
 )

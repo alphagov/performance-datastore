@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/jabley/performance-datastore/pkg/dataset"
+	"github.com/alphagov/performance-datastore/pkg/dataset"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"time"

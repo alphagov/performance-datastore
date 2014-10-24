@@ -9,8 +9,8 @@ import (
 	"runtime"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/alphagov/performance-datastore/pkg/dataset"
 	"github.com/go-martini/martini"
-	"github.com/jabley/performance-datastore/pkg/dataset"
 )
 
 const (

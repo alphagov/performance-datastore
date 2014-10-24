@@ -2,7 +2,7 @@ package config_api
 
 import (
 	"encoding/json"
-	"github.com/jabley/performance-datastore/pkg/request"
+	"github.com/alphagov/performance-datastore/pkg/request"
 )
 
 type DataSetMetaData struct {

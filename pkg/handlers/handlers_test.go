@@ -14,9 +14,9 @@ import (
 	"github.com/go-martini/martini"
 	"github.com/quipo/statsd"
 
-	"github.com/jabley/performance-datastore/pkg/config_api"
-	"github.com/jabley/performance-datastore/pkg/dataset"
-	"github.com/jabley/performance-datastore/pkg/handlers"
+	"github.com/alphagov/performance-datastore/pkg/config_api"
+	"github.com/alphagov/performance-datastore/pkg/dataset"
+	"github.com/alphagov/performance-datastore/pkg/handlers"
 
 	"strings"
 	"time"

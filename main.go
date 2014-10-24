@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/alext/tablecloth"
-	"github.com/jabley/performance-datastore/pkg/config_api"
-	"github.com/jabley/performance-datastore/pkg/handlers"
+	"github.com/alphagov/performance-datastore/pkg/config_api"
+	"github.com/alphagov/performance-datastore/pkg/handlers"
 	"net/http"
 	"os"
 	"strconv"

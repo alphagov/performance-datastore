@@ -1,7 +1,7 @@
 package config_api_test
 
 import (
-	. "github.com/jabley/performance-datastore/pkg/config_api"
+	. "github.com/alphagov/performance-datastore/pkg/config_api"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
