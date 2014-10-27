@@ -6,6 +6,8 @@
 # Folders
 _obj
 _test
+# Gom local copies of dependencies for testing
+_vendor
 
 # Architecture specific extensions/prefixes
 *.[568vq]

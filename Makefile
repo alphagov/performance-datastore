@@ -5,15 +5,15 @@ BINARY := performance_datastore
 all: deps fmt test build
 
 deps:
-	go get github.com/tools/godep
-	godep restore
+	go get github.com/mattn/gom
+	gom -test install
 
 fmt:
 	gofmt -w=1 *.go
 	gofmt -w=1 pkg
 
 test:
-	godep go test \
+	gom test \
 		. \
 		./pkg/config_api/ \
 		./pkg/dataset/ \
@@ -23,7 +23,7 @@ test:
 		./pkg/validation/
 
 build:
-	godep go build -o $(BINARY)
+	gom build -o $(BINARY)
 
 clean:
 	rm -rf $(BINARY)
