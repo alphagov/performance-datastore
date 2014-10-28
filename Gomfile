@@ -1,0 +1,16 @@
+gom 'github.com/Sirupsen/logrus', :commit => '3d46664b062c3a468b50e367f115179e26a9462c'
+gom 'github.com/alext/tablecloth', :commit => 'b373a9a6ff0ebb8953da0681db7a72202c73e2ef'
+gom 'github.com/cenkalti/backoff', :commit => '9b3b0d8135f565e3777f12db974d1c54c5b02d47'
+gom 'github.com/codegangsta/inject', :commit => '4b8172520a03fa190f427bbd284db01b459bfce7'
+gom 'github.com/go-martini/martini', :commit => '7d32ea3fa6590565c928b90a48178b60b96df98f'
+gom 'github.com/quipo/statsd', :commit => 'e260042c957aa6ffa369c4f38c21d66cfad15ffc'
+gom 'github.com/xeipuuv/gojsonpointer', :commit => '57ab5e9c764219a3e0c4d7759797fefdcab22e9c'
+gom 'github.com/xeipuuv/gojsonreference', :commit => '47e61ed14ee33a23dadf5baffffc7d1b35d0b0ec'
+gom 'github.com/xeipuuv/gojsonschema', :commit => 'b77385941381681f1bba177899ed1d1bedd32ea2'
+gom 'gopkg.in/mgo.v2', :commit => '231ce7e0549b5ce60d35ed805bff505cab7098e4'
+gom 'gopkg.in/unrolled/render.v1', :commit => 'cf57b1afa5d93abdbd356aad95d7c2720dad6d01'
+
+group :test do
+  gom 'github.com/onsi/ginkgo', :commit => '75d0cd9c7ee52e99b13e6ccfd9e58b4f92b7795e'
+  gom 'github.com/onsi/gomega', :commit => '835b5e4242c715976b98ed6bc6ece1d9c7879f66'
+end
