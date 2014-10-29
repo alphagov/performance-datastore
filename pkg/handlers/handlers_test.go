@@ -536,7 +536,7 @@ var _ = Describe("Handlers", func() {
 
 					body, err := readResponseBody(response)
 					Expect(err).Should(BeNil())
-					Expect(body).Should(Equal(`{"errors":[{"detail":"Maximum upload size encounted. Treating as a potential zip bomb."}]}`))
+					Expect(body).Should(Equal(`{"errors":[{"detail":"Maximum upload size encountered. Treating as a potential zip bomb."}]}`))
 				})
 			})
 		})

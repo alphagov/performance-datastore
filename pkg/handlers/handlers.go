@@ -102,6 +102,8 @@ func handleWriteRequest(
 	}
 
 	dataSet := dataset.DataSet{DataSetStorage, *metaData}
+
+	// Make the dataSet available to the request context
 	c.Map(dataSet)
 
 	err = validateAuthorization(r, dataSet)
@@ -113,7 +115,11 @@ func handleWriteRequest(
 
 	jsonBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		renderError(w, http.StatusBadRequest, err.Error())
+		if gzerr, ok := err.(*gzipBombError); ok {
+			renderError(w, http.StatusRequestEntityTooLarge, gzerr.Error())
+		} else {
+			renderError(w, http.StatusBadRequest, err.Error())
+		}
 		return
 	}
 
