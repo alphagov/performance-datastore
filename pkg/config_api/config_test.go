@@ -104,6 +104,17 @@ var _ = Describe("Config API", func() {
 				Expect(metaData).To(BeNil())
 				Expect(err).ToNot(BeNil())
 			})
+
+			It("gracefully handles non-JSON responses from remote API", func() {
+				server.RouteToHandler("GET", "/data-sets/deposit_foreign_marriage_journey",
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/data-sets/deposit_foreign_marriage_journey"),
+						ghttp.RespondWith(http.StatusOK, `This is not JSON`)))
+
+				metaData, err := client.DataSet("deposit_foreign_marriage_journey")
+				Expect(metaData).To(BeNil())
+				Expect(err).ToNot(BeNil())
+			})
 		})
 
 		Describe("ListDataSets", func() {
@@ -250,6 +261,17 @@ var _ = Describe("Config API", func() {
 				Expect(metaData).To(BeNil())
 				Expect(err).ToNot(BeNil())
 			})
+
+			It("gracefully handles non-JSON responses from remote API", func() {
+				server.RouteToHandler("GET", "/data-sets",
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/data-sets"),
+						ghttp.RespondWith(http.StatusOK, `This is not JSON`)))
+
+				metaData, err := client.ListDataSets()
+				Expect(metaData).To(BeNil())
+				Expect(err).ToNot(BeNil())
+			})
 		})
 
 		Describe("DataType", func() {
@@ -332,6 +354,17 @@ var _ = Describe("Config API", func() {
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/data-sets"),
 						ghttp.RespondWith(http.StatusInternalServerError, ``)))
+
+				metaData, err := client.DataType("vehicle-licensing", "channels")
+				Expect(metaData).To(BeNil())
+				Expect(err).ToNot(BeNil())
+			})
+
+			It("gracefully handles non-JSON responses from remote API", func() {
+				server.RouteToHandler("GET", "/data-sets",
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/data-sets"),
+						ghttp.RespondWith(http.StatusOK, `This is not JSON`)))
 
 				metaData, err := client.DataType("vehicle-licensing", "channels")
 				Expect(metaData).To(BeNil())
