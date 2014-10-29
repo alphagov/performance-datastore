@@ -9,6 +9,12 @@ import (
 	"net/http"
 )
 
+type gzipBombError struct{}
+
+func (e gzipBombError) Error() string {
+	return fmt.Sprintf("Maximum upload size encountered. Treating as a potential zip bomb.")
+}
+
 type gzipReader struct {
 	body      io.ReadCloser       // underlying Request.Body
 	zr        io.Reader           // lazily-initialized gzip reader
@@ -31,9 +37,8 @@ func (gz *gzipReader) Read(p []byte) (n int, err error) {
 	gz.readBytes += n
 
 	if gz.readBytes > gz.maxSize {
-		gz.logger.Infof("Exceeded gzip decompression limit (%s) - aborting", gz.maxSize)
-		gz.response.WriteHeader(http.StatusRequestEntityTooLarge)
-		return 0, fmt.Errorf("Maximum upload size encounted. Treating as a potential zip bomb.")
+		gz.logger.Infof("Exceeded gzip decompression limit (%v) - aborting", gz.maxSize)
+		return n, &gzipBombError{}
 	}
 
 	return
