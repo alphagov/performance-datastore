@@ -4,8 +4,10 @@ import (
 	"time"
 )
 
+// Period is an enumerated type for the supported time periods
 type Period int
 
+// The enumerated types for Period
 const (
 	Hour Period = 1 << iota
 	Day
@@ -15,8 +17,10 @@ const (
 	Year
 )
 
+// Periods is an array of the possible periods, in ascending order of size
 var Periods = []Period{Hour, Day, Week, Month, Quarter, Year}
 
+// FieldName returns the JSON field name for this Period
 func (p Period) FieldName() string {
 	var s string
 	switch p {
@@ -38,6 +42,7 @@ func (p Period) FieldName() string {
 	return s
 }
 
+// Value returns the provided time converted to the appropriate Period
 func (p Period) Value(t time.Time) (r time.Time) {
 	switch p {
 	case Hour:

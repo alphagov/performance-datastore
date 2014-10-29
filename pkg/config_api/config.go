@@ -5,6 +5,9 @@ import (
 	"github.com/alphagov/performance-datastore/pkg/request"
 )
 
+// DataSetMetaData defines the data structure returned by our meta data API
+// A future restructure will probably move this into our DataSetStorage interface
+// in the dataset package, since it feels like bad data locality.
 type DataSetMetaData struct {
 	Name            string          `json:"name"`
 	DataGroup       string          `json:"data_group"`
@@ -22,6 +25,7 @@ type DataSetMetaData struct {
 	Schema          json.RawMessage `json:"schema"`
 }
 
+// Client defines the interface that we need to talk to the meta data API
 type Client interface {
 	DataSet(name string) (*DataSetMetaData, error)
 	DataType(group string, dataType string) (*DataSetMetaData, error)
@@ -33,6 +37,7 @@ type defaultClient struct {
 	bearerToken string
 }
 
+// NewClient returns a new Client implementation with sensible defaults.
 func NewClient(baseURL string, bearerToken string) Client {
 	return &defaultClient{baseURL, bearerToken}
 }

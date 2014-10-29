@@ -11,6 +11,7 @@ var (
 	mgoSession *mgo.Session
 )
 
+// MongoDataSetStorage is an implementation of DataSetStorage.
 type MongoDataSetStorage struct {
 	URL          string
 	DatabaseName string
@@ -29,10 +30,12 @@ func getMgoSession(URL string) *mgo.Session {
 	return mgoSession.Copy()
 }
 
+// NewMongoStorage creates a new MongoDataSetStorage.
 func NewMongoStorage(URL string, databaseName string) dataset.DataSetStorage {
 	return &MongoDataSetStorage{URL, databaseName}
 }
 
+// Create creates the named DataSet, returning an error if there was a problem.
 func (m *MongoDataSetStorage) Create(name string, cappedSize int64) error {
 	session := getMgoSession(m.URL)
 	defer session.Close()
@@ -47,6 +50,7 @@ func (m *MongoDataSetStorage) Create(name string, cappedSize int64) error {
 	return session.DB(m.DatabaseName).C(m.DatabaseName).Create(info)
 }
 
+// Exists returns true if the named DataSet exists, otherwise false.
 func (m *MongoDataSetStorage) Exists(name string) bool {
 	session := getMgoSession(m.URL)
 	defer session.Close()
@@ -66,6 +70,7 @@ func (m *MongoDataSetStorage) Exists(name string) bool {
 	return false
 }
 
+// Alive returns true if we can talk to a mongodb instance, otherwise false
 func (m *MongoDataSetStorage) Alive() bool {
 	session := getMgoSession(m.URL)
 	defer session.Close()
@@ -75,6 +80,7 @@ func (m *MongoDataSetStorage) Alive() bool {
 	return len(session.LiveServers()) > 0
 }
 
+// Empty empties the named DataSet.
 func (m *MongoDataSetStorage) Empty(name string) error {
 	session := getMgoSession(m.URL)
 	defer session.Close()
@@ -85,6 +91,7 @@ func (m *MongoDataSetStorage) Empty(name string) error {
 	return err
 }
 
+// LastUpdated returns the time that the named DataSet was last updated, or nil if it never has been updated.
 func (m *MongoDataSetStorage) LastUpdated(name string) (t *time.Time) {
 	session := getMgoSession(m.URL)
 	defer session.Close()
@@ -110,6 +117,7 @@ func (m *MongoDataSetStorage) LastUpdated(name string) (t *time.Time) {
 	return
 }
 
+// SaveRecord saves the given JSON record in the named DataSet, returning an error if there was a problem.
 func (m *MongoDataSetStorage) SaveRecord(name string, record map[string]interface{}) error {
 	session := getMgoSession(m.URL)
 	defer session.Close()
