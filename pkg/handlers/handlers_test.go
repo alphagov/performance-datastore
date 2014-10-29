@@ -142,7 +142,9 @@ func Unmarshal(body io.ReadCloser) map[string]interface{} {
 }
 
 func newHandler(maxBodySize int) http.Handler {
-	return handlers.NewHandler(maxBodySize, logrus.New())
+	logger := logrus.New()
+	logger.Level = logrus.WarnLevel
+	return handlers.NewHandler(maxBodySize, logger)
 }
 
 var _ = Describe("Handlers", func() {
