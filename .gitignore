@@ -25,7 +25,5 @@ _testmain.go
 *.test
 
 # Project-specific
-peformance-datastore
-peformance_datastore
+performance-datastore
 bin
-Godeps/_workspace
