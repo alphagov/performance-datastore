@@ -19,7 +19,6 @@ test:
 		./pkg/dataset/ \
 		./pkg/handlers/ \
 		./pkg/request/ \
-		./pkg/json_response/ \
 		./pkg/validation/
 
 build:
