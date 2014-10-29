@@ -1,6 +1,6 @@
 .PHONY: deps test build
 
-BINARY := performance_datastore
+BINARY := performance-datastore
 
 all: deps fmt test build
 
