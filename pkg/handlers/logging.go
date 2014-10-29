@@ -16,11 +16,12 @@ func NewLoggingMiddleware() martini.Handler {
 		rw := res.(martini.ResponseWriter)
 
 		log.WithFields(logrus.Fields{
-			"method":      req.Method,
-			"path":        req.URL.Path,
-			"request_uri": req.RequestURI,
-			"status":      rw.Status(),
-			"time":        latency,
+			"method":       req.Method,
+			"path":         req.URL.Path,
+			"request_uri":  req.RequestURI,
+			"status":       rw.Status(),
+			"time":         latency,
+			"request_time": latency.Seconds(),
 		}).Info("Handled a request")
 	}
 }
