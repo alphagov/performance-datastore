@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/alphagov/performance-datastore/pkg/config_api"
+	"github.com/alphagov/performance-datastore/pkg/config"
 	"github.com/alphagov/performance-datastore/pkg/dataset"
 	"github.com/quipo/statsd"
 	"gopkg.in/unrolled/render.v1"
@@ -31,7 +31,7 @@ var (
 	DataSetStorage dataset.DataSetStorage
 
 	// ConfigAPIClient allows the client to be injected for testing purposes
-	ConfigAPIClient config_api.Client
+	ConfigAPIClient config.Client
 
 	// StatsdClient allows the statsd implementation to be injected for testing purposes
 	StatsdClient statsd.Statsd

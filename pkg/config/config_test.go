@@ -1,7 +1,7 @@
-package config_api_test
+package config_test
 
 import (
-	. "github.com/alphagov/performance-datastore/pkg/config_api"
+	. "github.com/alphagov/performance-datastore/pkg/config"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 

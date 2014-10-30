@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/alphagov/performance-datastore/pkg/config_api"
+	"github.com/alphagov/performance-datastore/pkg/config"
 	"github.com/alphagov/performance-datastore/pkg/validation"
 	"github.com/xeipuuv/gojsonschema"
 	"strings"
@@ -24,7 +24,7 @@ type DataSetStorage interface {
 // DataSet is the data type for a data set
 type DataSet struct {
 	Storage  DataSetStorage
-	MetaData config_api.DataSetMetaData
+	MetaData config.DataSetMetaData
 }
 
 // Query defines an abstraction around how we query DataSetStorage implementations

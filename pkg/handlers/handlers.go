@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/alphagov/performance-datastore/pkg/config_api"
+	"github.com/alphagov/performance-datastore/pkg/config"
 	"github.com/alphagov/performance-datastore/pkg/dataset"
 	"github.com/alphagov/performance-datastore/pkg/validation"
 	"github.com/go-martini/martini"
@@ -151,7 +151,7 @@ func ensureIsArray(data interface{}) []interface{} {
 	}
 }
 
-func fetch(metaData *config_api.DataSetMetaData, w http.ResponseWriter, r *http.Request) {
+func fetch(metaData *config.DataSetMetaData, w http.ResponseWriter, r *http.Request) {
 	if metaData == nil {
 		renderError(w, http.StatusNotFound, "data_set not found")
 		return
@@ -236,7 +236,7 @@ func extractBearerToken(dataSet dataset.DataSet, authorization string) (token st
 	return token, token == dataSet.BearerToken()
 }
 
-func fetchDataMetaData(dataGroup string, dataType string) (*config_api.DataSetMetaData, error) {
+func fetchDataMetaData(dataGroup string, dataType string) (*config.DataSetMetaData, error) {
 	dataTypeStart := time.Now()
 	defer statsDTiming(fmt.Sprintf("config.%s.%s", dataGroup, dataType),
 		dataTypeStart, time.Now())

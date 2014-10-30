@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/alphagov/performance-datastore/pkg/config_api"
+	"github.com/alphagov/performance-datastore/pkg/config"
 	"github.com/alphagov/performance-datastore/pkg/dataset"
 	"net/http"
 	"sync"
@@ -71,7 +71,7 @@ func checkFreshness(
 	}
 }
 
-func collectStaleness(datasets []config_api.DataSetMetaData) (failing chan DataSetStatus) {
+func collectStaleness(datasets []config.DataSetMetaData) (failing chan DataSetStatus) {
 	failing = make(chan DataSetStatus, len(datasets))
 
 	if len(datasets) == 0 {
