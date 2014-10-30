@@ -183,7 +183,7 @@ func fetch(metaData *config.DataSetMetaData, w http.ResponseWriter, r *http.Requ
 	data, err := dataSet.Execute(query)
 
 	if err != nil {
-		renderError(w, http.StatusBadRequest, fmt.Sprintf("Invalid collect function", dataSet.Name()))
+		renderError(w, http.StatusBadRequest, fmt.Sprintf("%v: Invalid collect function", dataSet.Name()))
 		return
 	}
 
