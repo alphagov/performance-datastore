@@ -2,7 +2,7 @@ package dataset_test
 
 import (
 	"encoding/json"
-	"github.com/alphagov/performance-datastore/pkg/config_api"
+	"github.com/alphagov/performance-datastore/pkg/config"
 	. "github.com/alphagov/performance-datastore/pkg/dataset"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -18,13 +18,13 @@ func Unmarshal(t string) map[string]interface{} {
 
 var _ = Describe("Dataset", func() {
 	var (
-		metaData config_api.DataSetMetaData
+		metaData config.DataSetMetaData
 		dataSet  DataSet
 		errors   []error
 	)
 
 	BeforeEach(func() {
-		metaData = config_api.DataSetMetaData{}
+		metaData = config.DataSetMetaData{}
 		dataSet = DataSet{nil, metaData}
 		errors = []error{}
 	})

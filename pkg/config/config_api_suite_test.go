@@ -1,4 +1,4 @@
-package config_api_test
+package config_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestConfigApi(t *testing.T) {
+func TestConfig(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "ConfigApi Suite")
+	RunSpecs(t, "Config Suite")
 }

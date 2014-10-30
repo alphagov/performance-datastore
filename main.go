@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/alext/tablecloth"
-	"github.com/alphagov/performance-datastore/pkg/config_api"
+	"github.com/alphagov/performance-datastore/pkg/config"
 	"github.com/alphagov/performance-datastore/pkg/handlers"
 	"net/http"
 	"os"
@@ -30,7 +30,7 @@ func main() {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
-	handlers.ConfigAPIClient = config_api.NewClient(configAPIURL, bearerToken)
+	handlers.ConfigAPIClient = config.NewClient(configAPIURL, bearerToken)
 	handlers.DataSetStorage = handlers.NewMongoStorage(mongoURL, databaseName)
 	handlers.StatsdClient = handlers.NewStatsDClient("localhost:8125", "datastore.")
 

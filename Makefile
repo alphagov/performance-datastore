@@ -18,7 +18,7 @@ fmt:
 test:
 	gom exec ginkgo -cover \
 		. \
-		./pkg/config_api/ \
+		./pkg/config/ \
 		./pkg/dataset/ \
 		./pkg/handlers/ \
 		./pkg/request/ \
