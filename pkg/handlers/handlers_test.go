@@ -1,4 +1,4 @@
-package handlers_test
+package handlers
 
 import (
 	"bytes"
@@ -16,7 +16,6 @@ import (
 
 	"github.com/alphagov/performance-datastore/pkg/config"
 	"github.com/alphagov/performance-datastore/pkg/dataset"
-	"github.com/alphagov/performance-datastore/pkg/handlers"
 
 	"strings"
 	"time"
@@ -144,7 +143,7 @@ func Unmarshal(body io.ReadCloser) map[string]interface{} {
 func newHandler(maxBodySize int) http.Handler {
 	logger := logrus.New()
 	logger.Level = logrus.WarnLevel
-	return handlers.NewHandler(maxBodySize, logger)
+	return NewHandler(maxBodySize, logger)
 }
 
 var _ = Describe("Handlers", func() {
@@ -154,7 +153,7 @@ var _ = Describe("Handlers", func() {
 	BeforeEach(func() {
 		testServer = testHandlerServer(newHandler(10000000))
 		martini.Env = martini.Test
-		handlers.StatsdClient = handlers.NewStatsDClient("localhost:8125", "datastore.")
+		StatsdClient = NewStatsDClient("localhost:8125", "datastore.")
 	})
 
 	AfterEach(func() {
@@ -163,7 +162,7 @@ var _ = Describe("Handlers", func() {
 
 	Describe("Status", func() {
 		It("responds with a status of OK", func() {
-			handlers.DataSetStorage = newTestDataSetStorage(true, nil, false, nil)
+			DataSetStorage = newTestDataSetStorage(true, nil, false, nil)
 
 			response, err := http.Get(testServer.URL + "/_status")
 			Expect(err).To(BeNil())
@@ -175,7 +174,7 @@ var _ = Describe("Handlers", func() {
 		})
 
 		It("responds with a status of ruh roh when the storage is down", func() {
-			handlers.DataSetStorage = newTestDataSetStorage(false, nil, false, nil)
+			DataSetStorage = newTestDataSetStorage(false, nil, false, nil)
 
 			response, err := http.Get(testServer.URL + "/_status")
 			Expect(err).To(BeNil())
@@ -187,7 +186,7 @@ var _ = Describe("Handlers", func() {
 		})
 
 		It("responds to HEAD requests", func() {
-			handlers.DataSetStorage = newTestDataSetStorage(true, nil, false, nil)
+			DataSetStorage = newTestDataSetStorage(true, nil, false, nil)
 
 			response, err := http.Head(testServer.URL + "/_status")
 			Expect(err).To(BeNil())
@@ -195,7 +194,7 @@ var _ = Describe("Handlers", func() {
 		})
 
 		It("does not respond to POST requests", func() {
-			handlers.DataSetStorage = newTestDataSetStorage(true, nil, false, nil)
+			DataSetStorage = newTestDataSetStorage(true, nil, false, nil)
 
 			response, err := http.Post(testServer.URL+"/_status",
 				"application/json",
@@ -212,14 +211,14 @@ var _ = Describe("Handlers", func() {
 
 		BeforeEach(func() {
 			roughly30DaysAgo := time.Now().Add(time.Duration(-24*30) * time.Hour)
-			handlers.DataSetStorage = newTestDataSetStorage(true, &roughly30DaysAgo, false, nil)
+			DataSetStorage = newTestDataSetStorage(true, &roughly30DaysAgo, false, nil)
 		})
 
 		It("responds with a status of OK when there are no datasets", func() {
-			testServer := testHandlerServer(handlers.DataSetStatusHandler)
+			testServer := testHandlerServer(DataSetStatusHandler)
 			defer testServer.Close()
 
-			handlers.ConfigAPIClient = newTestConfigAPIClient(nil, nil, nil)
+			ConfigAPIClient = newTestConfigAPIClient(nil, nil, nil)
 
 			response, err := http.Get(testServer.URL)
 			Expect(err).To(BeNil())
@@ -231,10 +230,10 @@ var _ = Describe("Handlers", func() {
 		})
 
 		It("responds with a status of ruh roh when unable to talk to the config API", func() {
-			testServer := testHandlerServer(handlers.DataSetStatusHandler)
+			testServer := testHandlerServer(DataSetStatusHandler)
 			defer testServer.Close()
 
-			handlers.ConfigAPIClient = newTestConfigAPIClient(fmt.Errorf("Unable to connect to host"), nil, nil)
+			ConfigAPIClient = newTestConfigAPIClient(fmt.Errorf("Unable to connect to host"), nil, nil)
 
 			response, err := http.Get(testServer.URL)
 			Expect(err).To(BeNil())
@@ -246,10 +245,10 @@ var _ = Describe("Handlers", func() {
 		})
 
 		It("responds with a status of OK when there are no stale datasets", func() {
-			testServer := testHandlerServer(handlers.DataSetStatusHandler)
+			testServer := testHandlerServer(DataSetStatusHandler)
 			defer testServer.Close()
 
-			handlers.ConfigAPIClient = newTestConfigAPIClient(nil, nil,
+			ConfigAPIClient = newTestConfigAPIClient(nil, nil,
 				[]config.DataSetMetaData{
 					config.DataSetMetaData{},
 					config.DataSetMetaData{}})
@@ -264,7 +263,7 @@ var _ = Describe("Handlers", func() {
 		})
 
 		It("responds with a status of ruh roh when there are stale datasets", func() {
-			testServer := testHandlerServer(handlers.DataSetStatusHandler)
+			testServer := testHandlerServer(DataSetStatusHandler)
 			defer testServer.Close()
 
 			stale := config.DataSetMetaData{}
@@ -272,7 +271,7 @@ var _ = Describe("Handlers", func() {
 			maxExpectedAge := int64(8400)
 			stale.MaxExpectedAge = &maxExpectedAge
 
-			handlers.ConfigAPIClient = newTestConfigAPIClient(nil, nil,
+			ConfigAPIClient = newTestConfigAPIClient(nil, nil,
 				[]config.DataSetMetaData{
 					config.DataSetMetaData{},
 					stale})
@@ -303,7 +302,7 @@ var _ = Describe("Handlers", func() {
 
 		Context("When there is no valid Authorization credentials", func() {
 			It("Should fail with an Authorization required response when there is no Authorization header", func() {
-				handlers.ConfigAPIClient = newTestConfigAPIClient(nil,
+				ConfigAPIClient = newTestConfigAPIClient(nil,
 					&config.DataSetMetaData{Name: "the-dataset"},
 					nil)
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
@@ -320,7 +319,7 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should fail with an Authorization required response when the Authorization header isn't a valid bearer token", func() {
-				handlers.ConfigAPIClient = newTestConfigAPIClient(nil,
+				ConfigAPIClient = newTestConfigAPIClient(nil,
 					&config.DataSetMetaData{Name: "the-dataset"},
 					nil)
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
@@ -338,7 +337,7 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should fail with an Authorization required response when the Authorization bearer token does not match the data set bearer token", func() {
-				handlers.ConfigAPIClient = newTestConfigAPIClient(nil,
+				ConfigAPIClient = newTestConfigAPIClient(nil,
 					&config.DataSetMetaData{Name: "the-dataset"},
 					nil)
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
@@ -356,7 +355,7 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should fail with an Authorization required response when the Authorization bearer token does not match the data set bearer token", func() {
-				handlers.ConfigAPIClient = newTestConfigAPIClient(nil,
+				ConfigAPIClient = newTestConfigAPIClient(nil,
 					&config.DataSetMetaData{BearerToken: "the-bearer-token", Name: "the-dataset"},
 					nil)
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
@@ -376,7 +375,7 @@ var _ = Describe("Handlers", func() {
 
 		Context("When there are valid Authorization credentials", func() {
 			BeforeEach(func() {
-				handlers.ConfigAPIClient = newTestConfigAPIClient(nil,
+				ConfigAPIClient = newTestConfigAPIClient(nil,
 					&config.DataSetMetaData{BearerToken: "the-bearer-token", Name: "the-dataset"},
 					nil)
 			})
@@ -411,7 +410,7 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should persist the update for a single object", func() {
-				handlers.DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
+				DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
 					strings.NewReader(`{"animal":"parrot", "status":"pining"}`))
 				req.Header.Add("Authorization", "Bearer the-bearer-token")
@@ -427,7 +426,7 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should persist the update for an array of objects", func() {
-				handlers.DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
+				DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
 					strings.NewReader(`[
 	{"animal":"parrot", "status":"pining"},
@@ -446,8 +445,8 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should propagate failure to persist the updates", func() {
-				handlers.DataSetStorage = newTestDataSetStorage(true, nil, true, fmt.Errorf("Mongo connection is down"))
-				handlers.StatsdClient = newTestStatsdClient()
+				DataSetStorage = newTestDataSetStorage(true, nil, true, fmt.Errorf("Mongo connection is down"))
+				StatsdClient = newTestStatsdClient()
 
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
 					strings.NewReader(`{"animal":"parrot", "status":"pining"}`))
@@ -464,14 +463,14 @@ var _ = Describe("Handlers", func() {
 
 				// Check that the dataset was picked out of the context and the correct thing
 				// would have been sent to statsd
-				testStatsd := handlers.StatsdClient.(*testStatsdClient)
+				testStatsd := StatsdClient.(*testStatsdClient)
 				Expect(len(testStatsd.incOps)).Should(Equal(1))
 				Expect(testStatsd.incOps[0].stat).Should(Equal(`write.error.the-dataset`))
 			})
 
 			Context("With compressed requests", func() {
 				It("Should fail if the request does not have a Content-Encoding header", func() {
-					handlers.DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
+					DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 
 					var b bytes.Buffer
 					w := gzip.NewWriter(&b)
@@ -492,7 +491,7 @@ var _ = Describe("Handlers", func() {
 				})
 
 				It("Should succeed if the request has a Content-Encoding header", func() {
-					handlers.DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
+					DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 
 					var b bytes.Buffer
 					w := gzip.NewWriter(&b)
@@ -518,7 +517,7 @@ var _ = Describe("Handlers", func() {
 					handler := newHandler(10)
 					testServer = testHandlerServer(handler)
 
-					handlers.DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
+					DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 
 					var b bytes.Buffer
 					w := gzip.NewWriter(&b)
@@ -557,7 +556,7 @@ var _ = Describe("Handlers", func() {
 
 		Context("When there is no valid Authorization credentials", func() {
 			It("Should fail with an Authorization required response when there is no Authorization header", func() {
-				handlers.ConfigAPIClient = newTestConfigAPIClient(nil,
+				ConfigAPIClient = newTestConfigAPIClient(nil,
 					&config.DataSetMetaData{},
 					nil)
 				req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type", nil)
@@ -574,7 +573,7 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should fail with an Authorization required response when the Authorization header isn't a valid bearer token", func() {
-				handlers.ConfigAPIClient = newTestConfigAPIClient(nil,
+				ConfigAPIClient = newTestConfigAPIClient(nil,
 					&config.DataSetMetaData{Name: "the-dataset"},
 					nil)
 				req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type", nil)
@@ -592,7 +591,7 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should fail with an Authorization required response when the Authorization bearer token does not match the data set bearer token", func() {
-				handlers.ConfigAPIClient = newTestConfigAPIClient(nil,
+				ConfigAPIClient = newTestConfigAPIClient(nil,
 					&config.DataSetMetaData{Name: "the-dataset"},
 					nil)
 				req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type", nil)
@@ -609,7 +608,7 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should fail with an Authorization required response when the Authorization bearer token does not match the data set bearer token", func() {
-				handlers.ConfigAPIClient = newTestConfigAPIClient(nil,
+				ConfigAPIClient = newTestConfigAPIClient(nil,
 					&config.DataSetMetaData{BearerToken: "the-bearer-token", Name: "the-dataset"},
 					nil)
 				req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type", nil)
@@ -628,7 +627,7 @@ var _ = Describe("Handlers", func() {
 
 		Context("When there are valid Authorization credentials", func() {
 			BeforeEach(func() {
-				handlers.ConfigAPIClient = newTestConfigAPIClient(nil,
+				ConfigAPIClient = newTestConfigAPIClient(nil,
 					&config.DataSetMetaData{
 						BearerToken: "the-bearer-token",
 						Name:        "the-dataset"},
@@ -663,7 +662,7 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should persist the update emptying the data set", func() {
-				handlers.DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
+				DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 				req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type",
 					strings.NewReader(`[]`))
 				req.Header.Add("Authorization", "Bearer the-bearer-token")
@@ -678,7 +677,7 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should fail to update if the array isn't empty", func() {
-				handlers.DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
+				DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 				req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type",
 					strings.NewReader(`[
 	{"animal":"parrot", "status":"pining"}

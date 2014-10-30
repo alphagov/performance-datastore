@@ -1,4 +1,4 @@
-package request_test
+package request
 
 import (
 	"fmt"
@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-
-	. "github.com/alphagov/performance-datastore/pkg/request"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

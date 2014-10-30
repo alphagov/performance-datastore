@@ -1,4 +1,4 @@
-package dataset_test
+package dataset
 
 import (
 	. "github.com/onsi/ginkgo"
