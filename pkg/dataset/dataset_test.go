@@ -62,7 +62,7 @@ var _ = Describe("Dataset", func() {
 		It("Should not alter input when there are no auto IDs defined", func() {
 			record := Unmarshal(`{"foo": "foo", "bar": "bar"}`)
 			records := []map[string]interface{}{record}
-			actual := dataSet.ProcessAutoIds(records, &errors)
+			actual := dataSet.ProcessAutoIDs(records, &errors)
 			Expect(records).Should(Equal(actual))
 		})
 
@@ -70,7 +70,7 @@ var _ = Describe("Dataset", func() {
 			dataSet.MetaData.AutoIds = []string{"foo"}
 			record := Unmarshal(`{"foo": "foo", "bar": "bar"}`)
 			records := []map[string]interface{}{record}
-			actual := dataSet.ProcessAutoIds(records, &errors)
+			actual := dataSet.ProcessAutoIDs(records, &errors)
 			expected := Unmarshal(`{"foo": "foo", "bar": "bar","_id": "Zm9v"}`)
 			Expect([]map[string]interface{}{expected}).Should(Equal(actual))
 		})
@@ -79,7 +79,7 @@ var _ = Describe("Dataset", func() {
 			dataSet.MetaData.AutoIds = []string{"foo", "bar"}
 			record := Unmarshal(`{"foo": "foo", "bar": "bar"}`)
 			records := []map[string]interface{}{record}
-			actual := dataSet.ProcessAutoIds(records, &errors)
+			actual := dataSet.ProcessAutoIDs(records, &errors)
 			expected := Unmarshal(`{"foo": "foo", "bar": "bar","_id": "Zm9vLmJhcg=="}`)
 			Expect([]map[string]interface{}{expected}).Should(Equal(actual))
 		})

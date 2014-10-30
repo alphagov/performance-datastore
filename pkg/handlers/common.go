@@ -9,8 +9,9 @@ import (
 	"time"
 )
 
+// ErrorInfo is as described at jsonapi.org
 type ErrorInfo struct {
-	Id     string   `json:"id,omitempty"`
+	ID     string   `json:"id,omitempty"`
 	HREF   string   `json:"href,omitempty"`
 	Status string   `json:"status,omitempty"`
 	Code   string   `json:"code,omitempty"`
@@ -38,6 +39,7 @@ var (
 	renderer = render.New(render.Options{})
 )
 
+// MethodNotAllowedHandler is an http.Handler implementation for when an HTTP method is used which isn't supported by the resource.
 func MethodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
 	renderError(w, http.StatusMethodNotAllowed,
 		"Method "+r.Method+" not allowed for <"+r.URL.RequestURI()+">")
@@ -47,6 +49,7 @@ func renderError(w http.ResponseWriter, status int, errorString string) {
 	renderer.JSON(w, status, &errorResponse{Errors: []*ErrorInfo{&ErrorInfo{Detail: errorString}}})
 }
 
+// NewStatsDClient returns a statsd.Statsd implementation
 func NewStatsDClient(host, prefix string) *statsd.StatsdClient {
 	statsdClient := statsd.NewStatsdClient(host, prefix)
 	statsdClient.CreateSocket()

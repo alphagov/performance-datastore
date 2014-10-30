@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// NewLoggingMiddleware returns a martini.Handler middleware that logs details about a response
 func NewLoggingMiddleware() martini.Handler {
 	return func(res http.ResponseWriter, req *http.Request, c martini.Context, log *logrus.Logger) {
 		start := time.Now()

@@ -7,11 +7,12 @@ import (
 
 type groupByValidator struct{}
 
+// NewGroupByValidator returns a Validator that looks at the group_by argument.
 func NewGroupByValidator() Validator {
 	return &groupByValidator{}
 }
 
-func (x *groupByValidator) Validate(args map[string][]string) (err error, res interface{}) {
+func (x *groupByValidator) Validate(args map[string][]string) (res interface{}, err error) {
 	values, ok := args["group_by"]
 
 	if !ok {
@@ -19,15 +20,15 @@ func (x *groupByValidator) Validate(args map[string][]string) (err error, res in
 	}
 
 	if len(values) > 1 {
-		return fmt.Errorf("Can only have a single value for <group_by>"), nil
+		return nil, fmt.Errorf("Can only have a single value for <group_by>")
 	}
 
 	if !IsValidKey(values[0]) {
-		return fmt.Errorf("Cannot group by an invalid field name"), nil
+		return nil, fmt.Errorf("Cannot group by an invalid field name")
 	}
 
 	if strings.HasPrefix(values[0], "_") {
-		return fmt.Errorf("Cannot group by internal fields, internal fields start with an underscore"), nil
+		return nil, fmt.Errorf("Cannot group by internal fields, internal fields start with an underscore")
 	}
 
 	return

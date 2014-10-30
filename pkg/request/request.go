@@ -10,9 +10,11 @@ import (
 )
 
 var (
-	NotFoundError error = errors.New("not found")
+	// ErrNotFound is an error indicating that the server returned a 404.
+	ErrNotFound = errors.New("not found")
 )
 
+// NewRequest tries to make a request to the URL, returning the http.Response if it was successful, or an error if there was a problem.
 func NewRequest(url, bearerToken string) (*http.Response, error) {
 	client := http.Client{}
 
@@ -32,12 +34,13 @@ func NewRequest(url, bearerToken string) (*http.Response, error) {
 	}
 
 	if response.StatusCode == http.StatusNotFound {
-		return nil, NotFoundError
+		return nil, ErrNotFound
 	}
 
 	return response, err
 }
 
+// ReadResponseBody reads the response body stream and returns a byte array, or an error if there was a problem.
 func ReadResponseBody(response *http.Response) ([]byte, error) {
 	defer response.Body.Close()
 	return ioutil.ReadAll(response.Body)

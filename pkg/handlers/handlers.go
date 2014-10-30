@@ -15,11 +15,13 @@ import (
 	"time"
 )
 
+// WarningResponse is an JSON response used to indicate a potential problem.
 type WarningResponse struct {
 	Data    interface{}
 	Warning string `json:"warning"`
 }
 
+// NewHandler returns an http.Handler implementation for the server.
 func NewHandler(maxGzipBody int, logger *logrus.Logger) http.Handler {
 	m := martini.Classic()
 	m.Map(logger)

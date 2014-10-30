@@ -8,11 +8,12 @@ import (
 
 type sortByValidator struct{}
 
+// NewSortByValidator returns a Validator that looks at the sort_by argument.
 func NewSortByValidator() Validator {
 	return &sortByValidator{}
 }
 
-func (x *sortByValidator) Validate(args map[string][]string) (err error, res interface{}) {
+func (x *sortByValidator) Validate(args map[string][]string) (res interface{}, err error) {
 	values, ok := args["sort_by"]
 
 	if !ok {
@@ -20,17 +21,17 @@ func (x *sortByValidator) Validate(args map[string][]string) (err error, res int
 	}
 
 	if len(values) > 1 {
-		return fmt.Errorf("can only sort by one field"), nil
+		return nil, fmt.Errorf("can only sort by one field")
 	}
 
 	_, periodOk := args["period"]
 	_, groupByOk := args["group_by"]
 
 	if periodOk && !groupByOk {
-		return fmt.Errorf(`Cannot sort for period queries without group_by. Period queries are always sorted by time."`), nil
+		return nil, fmt.Errorf(`Cannot sort for period queries without group_by. Period queries are always sorted by time."`)
 	}
 
-	return validateSortBy(values[0]), nil
+	return nil, validateSortBy(values[0])
 }
 
 func validateSortBy(candidate string) error {

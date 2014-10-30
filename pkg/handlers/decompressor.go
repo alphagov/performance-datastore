@@ -48,6 +48,7 @@ func (gz *gzipReader) Close() error {
 	return gz.body.Close()
 }
 
+// NewDecompressingMiddleware returns a martini.Handler middleware which can decompress request bodies on the fly.
 func NewDecompressingMiddleware(maxSize int) martini.Handler {
 	return func(res http.ResponseWriter, req *http.Request, c martini.Context, logger *logrus.Logger) {
 		contentEncoding := req.Header["Content-Encoding"]

@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	panicHtml = `<html>
+	panicHTML = `<html>
 <head><title>PANIC: %s</title>
 <style type="text/css">
 html, body {
@@ -112,8 +112,8 @@ func function(pc uintptr) []byte {
 	return name
 }
 
-// Recovery returns a middleware that recovers from any panics and writes a 500 if there was one.
-// While Martini is in development mode, Recovery will also output the panic as HTML.
+// NewRecoveryHandler returns a middleware that recovers from any panics and writes a 500 if there was one.
+// While Martini is in development mode, NewRecoveryHandler will also output the panic as HTML.
 func NewRecoveryHandler() martini.Handler {
 	return func(w http.ResponseWriter, req *http.Request, c martini.Context, logger *logrus.Logger) {
 		defer func() {
@@ -126,7 +126,7 @@ func NewRecoveryHandler() martini.Handler {
 				// respond with panic message while in development mode
 				if martini.Env == martini.Dev {
 					w.Header().Set("Content-Type", "text/html")
-					body := []byte(fmt.Sprintf(panicHtml, err, err, stack))
+					body := []byte(fmt.Sprintf(panicHTML, err, err, stack))
 					w.WriteHeader(http.StatusInternalServerError)
 					w.Write(body)
 				} else {

@@ -7,11 +7,12 @@ import (
 
 type filterByValidator struct{}
 
+// NewFilterByValidator returns a Validator that looks at the filter_by argument.
 func NewFilterByValidator() Validator {
 	return &filterByValidator{}
 }
 
-func (x *filterByValidator) Validate(args map[string][]string) (err error, res interface{}) {
+func (x *filterByValidator) Validate(args map[string][]string) (res interface{}, err error) {
 	values, ok := args["filter_by"]
 
 	if !ok {
@@ -20,7 +21,7 @@ func (x *filterByValidator) Validate(args map[string][]string) (err error, res i
 
 	for _, v := range values {
 		if !isValidFilterBy(v) {
-			return fmt.Errorf("filter_by is not a valid"), nil
+			return nil, fmt.Errorf("filter_by is not a valid")
 		}
 	}
 

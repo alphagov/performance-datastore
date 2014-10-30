@@ -25,6 +25,7 @@ func StatusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// DataSetStatus is a representation of health for a DataSet.
 type DataSetStatus struct {
 	Name             string    `json:"name"`
 	SecondsOutOfDate int64     `json:"seconds-out-of-date"`
@@ -110,21 +111,21 @@ func summariseStaleness(failing chan DataSetStatus) *ErrorInfo {
 
 	if allGood {
 		return nil
-	} else {
-		message = fmt.Sprintf("%d %s out of date", len(failures), pluraliseDataSets(failures))
-
-		return &ErrorInfo{
-			Status: "not okay",
-			Detail: message,
-			// Other: failures,
-		}
 	}
+
+	message = fmt.Sprintf("%d %s out of date", len(failures), pluraliseDataSets(failures))
+
+	return &ErrorInfo{
+		Status: "not okay",
+		Detail: message,
+		// Other: failures,
+	}
+
 }
 
 func pluraliseDataSets(failures []DataSetStatus) string {
 	if len(failures) > 1 {
 		return "data-sets are"
-	} else {
-		return "data-set is"
 	}
+	return "data-set is"
 }

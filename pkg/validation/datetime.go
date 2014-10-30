@@ -17,13 +17,14 @@ var (
 	}
 )
 
+// NewDateTimeValidator validates that the specified named field can be treated as a valid time.Time.
 func NewDateTimeValidator(name string) Validator {
 	return &dateTimeValidator{
 		name: name,
 	}
 }
 
-func (x *dateTimeValidator) Validate(args map[string][]string) (err error, res interface{}) {
+func (x *dateTimeValidator) Validate(args map[string][]string) (res interface{}, err error) {
 	values, ok := args[x.name]
 
 	if !ok {
@@ -31,11 +32,11 @@ func (x *dateTimeValidator) Validate(args map[string][]string) (err error, res i
 	}
 
 	if len(values) > 1 {
-		return fmt.Errorf("%s is not a valid datetime", x.name), nil
+		return nil, fmt.Errorf("%s is not a valid datetime", x.name)
 	}
 
 	if res = ParseDateTime(values[0]); res == nil {
-		return fmt.Errorf("%s is not a valid datetime", x.name), nil
+		return nil, fmt.Errorf("%s is not a valid datetime", x.name)
 	}
 
 	return
@@ -45,6 +46,8 @@ func isValidDateTime(candidate string) bool {
 	return ParseDateTime(candidate) != nil
 }
 
+// ParseDateTime checks that returns a *time.Time representation of candidate, or nil if not possible.
+// The supported formats are defined in validLayouts.
 func ParseDateTime(candidate interface{}) *time.Time {
 	res, isTime := candidate.(time.Time)
 
@@ -72,11 +75,12 @@ type midnightValidator struct {
 	name string
 }
 
+// NewMidnightValidator validates that we have period that isn't hour, and the relevant date is midnight UTC.
 func NewMidnightValidator(name string) Validator {
 	return &midnightValidator{name: name}
 }
 
-func (x *midnightValidator) Validate(args map[string][]string) (err error, res interface{}) {
+func (x *midnightValidator) Validate(args map[string][]string) (res interface{}, err error) {
 	values, ok := args[x.name]
 
 	if !ok {
@@ -84,17 +88,17 @@ func (x *midnightValidator) Validate(args map[string][]string) (err error, res i
 	}
 
 	if len(values) > 1 {
-		return fmt.Errorf("%s is not a valid datetime", x.name), nil
+		return nil, fmt.Errorf("%s is not a valid datetime", x.name)
 	}
 
-	periodErr, period := NewPeriodValidator().Validate(args)
+	period, periodErr := NewPeriodValidator().Validate(args)
 
 	if theDate := ParseDateTime(values[0]); theDate != nil &&
 		periodErr == nil &&
 		(period != nil && period != "hour") {
 
 		if !isMidnight(theDate.UTC()) {
-			return fmt.Errorf("%s must be midnight", x.name), nil
+			return nil, fmt.Errorf("%s must be midnight", x.name)
 		}
 	}
 
@@ -110,19 +114,20 @@ type timespanValidator struct {
 	length int
 }
 
+// NewTimespanValidator validates that we have a start_at, end_at and a period that isn't hour.
 func NewTimespanValidator(length int) Validator {
 	return &timespanValidator{length: length}
 }
 
-func (x *timespanValidator) Validate(args map[string][]string) (err error, res interface{}) {
-	_, startAt := NewDateTimeValidator("start_at").Validate(args)
-	_, endAt := NewDateTimeValidator("end_at").Validate(args)
-	_, period := NewPeriodValidator().Validate(args)
+func (x *timespanValidator) Validate(args map[string][]string) (res interface{}, err error) {
+	startAt, _ := NewDateTimeValidator("start_at").Validate(args)
+	endAt, _ := NewDateTimeValidator("end_at").Validate(args)
+	period, _ := NewPeriodValidator().Validate(args)
 
 	if startAt != nil && endAt != nil && (period != nil && period != "hour") {
 		hours := endAt.(*time.Time).UTC().Sub(startAt.(*time.Time).UTC()).Hours()
 		if hours < float64(24*7) {
-			return fmt.Errorf("The minimum timespan for a query is %v days", x.length), nil
+			return nil, fmt.Errorf("The minimum timespan for a query is %v days", x.length)
 		}
 		res = hours / 24
 	}
@@ -134,18 +139,19 @@ type mondayValidator struct {
 	name string
 }
 
+// NewMondayValidator returns a Validator implementation which checks that week periods start on a Monday
 func NewMondayValidator(name string) Validator {
 	return &mondayValidator{name: name}
 }
 
-func (x *mondayValidator) Validate(args map[string][]string) (err error, res interface{}) {
-	_, date := NewDateTimeValidator(x.name).Validate(args)
-	_, period := NewPeriodValidator().Validate(args)
+func (x *mondayValidator) Validate(args map[string][]string) (res interface{}, err error) {
+	date, _ := NewDateTimeValidator(x.name).Validate(args)
+	period, _ := NewPeriodValidator().Validate(args)
 
 	if (period != nil && period == "week") &&
 		date != nil &&
 		date.(*time.Time).UTC().Weekday() != time.Monday {
-		return fmt.Errorf("%v must be a Monday but was %v", x.name, date), nil
+		return nil, fmt.Errorf("%v must be a Monday but was %v", x.name, date)
 	}
 
 	return
@@ -155,18 +161,19 @@ type monthValidator struct {
 	name string
 }
 
+// NewMonthValidator returns a Validator implementation month periods start on the first
 func NewMonthValidator(name string) Validator {
 	return &monthValidator{name: name}
 }
 
-func (x *monthValidator) Validate(args map[string][]string) (err error, res interface{}) {
-	_, date := NewDateTimeValidator(x.name).Validate(args)
-	_, period := NewPeriodValidator().Validate(args)
+func (x *monthValidator) Validate(args map[string][]string) (res interface{}, err error) {
+	date, _ := NewDateTimeValidator(x.name).Validate(args)
+	period, _ := NewPeriodValidator().Validate(args)
 
 	if (period != nil && period == "month") &&
 		date != nil &&
 		date.(*time.Time).UTC().Day() != 1 {
-		return fmt.Errorf("%v must be a first of the month but was %v", x.name, date), nil
+		return nil, fmt.Errorf("%v must be a first of the month but was %v", x.name, date)
 	}
 
 	return
