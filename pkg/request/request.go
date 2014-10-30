@@ -68,7 +68,7 @@ func tryGet(client http.Client, req *http.Request) (res *http.Response, err erro
 	}
 
 	expo := backoff.NewExponentialBackOff()
-	expo.MaxElapsedTime = (5 * time.Second)
+	expo.MaxElapsedTime = (4 * time.Second)
 	err = backoff.Retry(operation, expo)
 
 	if err != nil {
