@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -42,7 +43,9 @@ var _ = Describe("NewRequest", func() {
 			panic("Oh dear")
 		})
 		defer ts.Close()
-		response, err := NewRequest(ts.URL, "FOO")
+		// Ensure this isn't a slow test by restricting how many retries happen
+		maxElapsedTime := 5 * time.Millisecond
+		response, err := NewRequest(ts.URL, "FOO", RequestOptions{MaxElapsedTime: &maxElapsedTime})
 		Expect(response).To(BeNil())
 		Expect(err).ShouldNot(BeNil())
 	})

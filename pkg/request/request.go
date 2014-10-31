@@ -9,13 +9,22 @@ import (
 	"time"
 )
 
+// RequestOptions is the container for tweaking how NewRequest functions.
+type RequestOptions struct {
+	// MaxElapsedTime is the optional duration allowed to try to get a response from the origin server. Defaults to 5s.
+	MaxElapsedTime *time.Duration
+}
+
 var (
 	// ErrNotFound is an error indicating that the server returned a 404.
-	ErrNotFound = errors.New("not found")
+	ErrNotFound           = errors.New("not found")
+	defaultMaxElapsedTime = (5 * time.Second)
+	defaultRequestOptions = RequestOptions{MaxElapsedTime: &defaultMaxElapsedTime}
 )
 
 // NewRequest tries to make a request to the URL, returning the http.Response if it was successful, or an error if there was a problem.
-func NewRequest(url, bearerToken string) (*http.Response, error) {
+// An optional RequestOptions argument can be passed to specify contextual behaviour for this request, otherwise defaultOptions will be used.
+func NewRequest(url, bearerToken string, options ...RequestOptions) (*http.Response, error) {
 	client := http.Client{}
 
 	request, err := http.NewRequest("GET", url, nil)
@@ -27,7 +36,8 @@ func NewRequest(url, bearerToken string) (*http.Response, error) {
 	request.Header.Add("Accept", "application/json")
 	request.Header.Add("User-Agent", "Performance-Platform-Client/1.0")
 
-	response, err := tryGet(client, request)
+	opts := mergeOptions(options)
+	response, err := tryGet(client, request, opts)
 
 	if err != nil {
 		return nil, err
@@ -46,7 +56,7 @@ func ReadResponseBody(response *http.Response) ([]byte, error) {
 	return ioutil.ReadAll(response.Body)
 }
 
-func tryGet(client http.Client, req *http.Request) (res *http.Response, err error) {
+func tryGet(client http.Client, req *http.Request, options RequestOptions) (res *http.Response, err error) {
 	// Use a channel to communicate between the goroutines. We use a channel rather
 	// than simple variable closure since that's how Go works :)
 	c := make(chan *http.Response, 1)
@@ -68,7 +78,8 @@ func tryGet(client http.Client, req *http.Request) (res *http.Response, err erro
 	}
 
 	expo := backoff.NewExponentialBackOff()
-	expo.MaxElapsedTime = (4 * time.Second)
+	expo.MaxElapsedTime = *options.MaxElapsedTime
+
 	err = backoff.Retry(operation, expo)
 
 	if err != nil {
@@ -80,4 +91,20 @@ func tryGet(client http.Client, req *http.Request) (res *http.Response, err erro
 	res = <-c
 
 	return res, err
+}
+
+func mergeOptions(options []RequestOptions) RequestOptions {
+	var opts RequestOptions
+
+	if len(options) > 0 {
+		opts = options[0]
+		// Effectively merge defaults with explicit options
+		if opts.MaxElapsedTime == nil {
+			opts.MaxElapsedTime = defaultRequestOptions.MaxElapsedTime
+		}
+	} else {
+		opts = defaultRequestOptions
+	}
+
+	return opts
 }
