@@ -36,11 +36,11 @@ func (mock *TestDataSetStorage) Alive() bool {
 }
 
 func (mock *TestDataSetStorage) Create(name string, cappedSize int64) error {
-	return nil
+	return mock.error
 }
 
 func (mock *TestDataSetStorage) Empty(name string) error {
-	return nil
+	return mock.error
 }
 
 func (mock *TestDataSetStorage) Exists(name string) bool {
@@ -55,8 +55,51 @@ func (mock *TestDataSetStorage) SaveRecord(name string, record map[string]interf
 	return mock.error
 }
 
-func newTestDataSetStorage(alive bool, lastUpdated *time.Time, exists bool, err error) dataset.DataSetStorage {
-	return &TestDataSetStorage{alive, lastUpdated, exists, err}
+func (mock *TestDataSetStorage) options(opts []TestDataSetStorageOption) (previous TestDataSetStorageOption) {
+	for _, opt := range opts {
+		previous = opt(mock)
+	}
+	return previous
+}
+
+type TestDataSetStorageOption func(*TestDataSetStorage) TestDataSetStorageOption
+
+func Alive(alive bool) TestDataSetStorageOption {
+	return func(t *TestDataSetStorage) TestDataSetStorageOption {
+		previous := t.alive
+		t.alive = alive
+		return Alive(previous)
+	}
+}
+
+func Exists(exists bool) TestDataSetStorageOption {
+	return func(t *TestDataSetStorage) TestDataSetStorageOption {
+		previous := t.exists
+		t.exists = exists
+		return Exists(previous)
+	}
+}
+
+func SomeError(err error) TestDataSetStorageOption {
+	return func(t *TestDataSetStorage) TestDataSetStorageOption {
+		previous := t.error
+		t.error = err
+		return SomeError(previous)
+	}
+}
+
+func LastUpdated(lastUpdated *time.Time) TestDataSetStorageOption {
+	return func(t *TestDataSetStorage) TestDataSetStorageOption {
+		previous := t.lastUpdated
+		t.lastUpdated = lastUpdated
+		return LastUpdated(previous)
+	}
+}
+
+func newTestDataSetStorage(options ...TestDataSetStorageOption) dataset.DataSetStorage {
+	result := TestDataSetStorage{}
+	result.options(options)
+	return &result
 }
 
 type TestConfigAPIClient struct {
@@ -161,49 +204,52 @@ var _ = Describe("Handlers", func() {
 	})
 
 	Describe("Status", func() {
-		It("responds with a status of OK", func() {
-			DataSetStorage = newTestDataSetStorage(true, nil, false, nil)
+		Context("With working Storage", func() {
 
-			response, err := http.Get(testServer.URL + "/_status")
-			Expect(err).To(BeNil())
-			Expect(response.StatusCode).To(Equal(http.StatusOK))
+			BeforeEach(func() {
+				DataSetStorage = newTestDataSetStorage(Alive(true))
+			})
 
-			body, err := readResponseBody(response)
-			Expect(err).To(BeNil())
-			Expect(body).To(Equal(`{"message":"database seems fine","status":"ok"}`))
+			It("responds with a status of OK", func() {
+				response, err := http.Get(testServer.URL + "/_status")
+				Expect(err).To(BeNil())
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+				body, err := readResponseBody(response)
+				Expect(err).To(BeNil())
+				Expect(body).To(Equal(`{"message":"database seems fine","status":"ok"}`))
+			})
+
+			It("responds to HEAD requests", func() {
+				response, err := http.Head(testServer.URL + "/_status")
+				Expect(err).To(BeNil())
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
+			})
+
+			It("does not respond to POST requests", func() {
+				response, err := http.Post(testServer.URL+"/_status",
+					"application/json",
+					strings.NewReader(`{"foo":"foo"}`))
+				Expect(err).To(BeNil())
+				// This is the preferred implementation but Martini routing doesn't do
+				// that – yet!
+				// So we've added an explicit route and handler for this
+				Expect(response.StatusCode).To(Equal(http.StatusMethodNotAllowed))
+			})
 		})
 
-		It("responds with a status of ruh roh when the storage is down", func() {
-			DataSetStorage = newTestDataSetStorage(false, nil, false, nil)
+		Context("with unavailable storage", func() {
+			It("responds with a status of ruh roh when the storage is down", func() {
+				DataSetStorage = newTestDataSetStorage(Alive(false))
 
-			response, err := http.Get(testServer.URL + "/_status")
-			Expect(err).To(BeNil())
-			Expect(response.StatusCode).To(Equal(http.StatusInternalServerError))
+				response, err := http.Get(testServer.URL + "/_status")
+				Expect(err).To(BeNil())
+				Expect(response.StatusCode).To(Equal(http.StatusInternalServerError))
 
-			body, err := readResponseBody(response)
-			Expect(err).To(BeNil())
-			Expect(body).To(Equal(`{"errors":[{"detail":"cannot connect to database"}]}`))
-		})
-
-		It("responds to HEAD requests", func() {
-			DataSetStorage = newTestDataSetStorage(true, nil, false, nil)
-
-			response, err := http.Head(testServer.URL + "/_status")
-			Expect(err).To(BeNil())
-			Expect(response.StatusCode).To(Equal(http.StatusOK))
-		})
-
-		It("does not respond to POST requests", func() {
-			DataSetStorage = newTestDataSetStorage(true, nil, false, nil)
-
-			response, err := http.Post(testServer.URL+"/_status",
-				"application/json",
-				strings.NewReader(`{"foo":"foo"}`))
-			Expect(err).To(BeNil())
-			// This is the preferred implementation but Martini routing doesn't do
-			// that – yet!
-			// So we've added an explicit route and handler for this
-			Expect(response.StatusCode).To(Equal(http.StatusMethodNotAllowed))
+				body, err := readResponseBody(response)
+				Expect(err).To(BeNil())
+				Expect(body).To(Equal(`{"errors":[{"detail":"cannot connect to database"}]}`))
+			})
 		})
 	})
 
@@ -211,7 +257,7 @@ var _ = Describe("Handlers", func() {
 
 		BeforeEach(func() {
 			roughly30DaysAgo := time.Now().Add(time.Duration(-24*30) * time.Hour)
-			DataSetStorage = newTestDataSetStorage(true, &roughly30DaysAgo, false, nil)
+			DataSetStorage = newTestDataSetStorage(Alive(true), LastUpdated(&roughly30DaysAgo))
 		})
 
 		It("responds with a status of OK when there are no datasets", func() {
@@ -378,6 +424,7 @@ var _ = Describe("Handlers", func() {
 				ConfigAPIClient = newTestConfigAPIClient(nil,
 					&config.DataSetMetaData{BearerToken: "the-bearer-token", Name: "the-dataset"},
 					nil)
+				DataSetStorage = newTestDataSetStorage(Alive(true), Exists(true))
 			})
 
 			It("Should need a request body", func() {
@@ -410,7 +457,6 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should persist the update for a single object", func() {
-				DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
 					strings.NewReader(`{"animal":"parrot", "status":"pining"}`))
 				req.Header.Add("Authorization", "Bearer the-bearer-token")
@@ -426,7 +472,6 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should persist the update for an array of objects", func() {
-				DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
 					strings.NewReader(`[
 	{"animal":"parrot", "status":"pining"},
@@ -444,34 +489,49 @@ var _ = Describe("Handlers", func() {
 				Expect(body).Should(Equal(`{"status":"OK"}`))
 			})
 
-			It("Should propagate failure to persist the updates", func() {
-				DataSetStorage = newTestDataSetStorage(true, nil, true, fmt.Errorf("Mongo connection is down"))
-				StatsdClient = newTestStatsdClient()
-
+			It("Should fail when provided with invalid data", func() {
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
-					strings.NewReader(`{"animal":"parrot", "status":"pining"}`))
+					strings.NewReader(`{"_animal":"parrot", "status":"pining"}`))
 				req.Header.Add("Authorization", "Bearer the-bearer-token")
 
 				response, err := client.Do(req)
 
 				Expect(err).Should(BeNil())
-				Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+				Expect(response.StatusCode).Should(Equal(http.StatusBadRequest))
 
 				body, err := readResponseBody(response)
 				Expect(err).Should(BeNil())
-				Expect(body).Should(Equal(`{"errors":[{"detail":"Mongo connection is down"}]}`))
+				Expect(body).Should(Equal(`{"errors":[{"detail":"All the errors"}]}`))
+			})
 
-				// Check that the dataset was picked out of the context and the correct thing
-				// would have been sent to statsd
-				testStatsd := StatsdClient.(*testStatsdClient)
-				Expect(len(testStatsd.incOps)).Should(Equal(1))
-				Expect(testStatsd.incOps[0].stat).Should(Equal(`write.error.the-dataset`))
+			Context("With unavailable storage", func() {
+				It("Should propagate failure to persist the updates", func() {
+					DataSetStorage = newTestDataSetStorage(Alive(true), Exists(true), SomeError(fmt.Errorf("Mongo connection is down")))
+					StatsdClient = newTestStatsdClient()
+
+					req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
+						strings.NewReader(`{"animal":"parrot", "status":"pining"}`))
+					req.Header.Add("Authorization", "Bearer the-bearer-token")
+
+					response, err := client.Do(req)
+
+					Expect(err).Should(BeNil())
+					Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+
+					body, err := readResponseBody(response)
+					Expect(err).Should(BeNil())
+					Expect(body).Should(Equal(`{"errors":[{"detail":"Mongo connection is down"}]}`))
+
+					// Check that the dataset was picked out of the context and the correct thing
+					// would have been sent to statsd
+					testStatsd := StatsdClient.(*testStatsdClient)
+					Expect(len(testStatsd.incOps)).Should(Equal(1))
+					Expect(testStatsd.incOps[0].stat).Should(Equal(`write.error.the-dataset`))
+				})
 			})
 
 			Context("With compressed requests", func() {
 				It("Should fail if the request does not have a Content-Encoding header", func() {
-					DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
-
 					var b bytes.Buffer
 					w := gzip.NewWriter(&b)
 					w.Write([]byte(`{"animal":"parrot", "status":"pining"}`))
@@ -490,9 +550,22 @@ var _ = Describe("Handlers", func() {
 					Expect(body).Should(Equal(`{"errors":[{"detail":"Error parsing JSON: invalid character '\\x1f' looking for beginning of value"}]}`))
 				})
 
-				It("Should succeed if the request has a Content-Encoding header", func() {
-					DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
+				It("Should fail if the request does not have a body", func() {
+					req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
+						bytes.NewReader([]byte{}))
+					req.Header.Add("Authorization", "Bearer the-bearer-token")
 
+					response, err := client.Do(req)
+
+					Expect(err).Should(BeNil())
+					Expect(response.StatusCode).Should(Equal(http.StatusBadRequest))
+
+					body, err := readResponseBody(response)
+					Expect(err).Should(BeNil())
+					Expect(body).Should(Equal(`{"errors":[{"detail":"Expected JSON request body but received zero bytes"}]}`))
+				})
+
+				It("Should succeed if the request has a Content-Encoding header", func() {
 					var b bytes.Buffer
 					w := gzip.NewWriter(&b)
 					w.Write([]byte(`{"animal":"parrot", "status":"pining"}`))
@@ -516,8 +589,6 @@ var _ = Describe("Handlers", func() {
 					testServer.Close()
 					handler := newHandler(10)
 					testServer = testHandlerServer(handler)
-
-					DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 
 					var b bytes.Buffer
 					w := gzip.NewWriter(&b)
@@ -632,6 +703,7 @@ var _ = Describe("Handlers", func() {
 						BearerToken: "the-bearer-token",
 						Name:        "the-dataset"},
 					nil)
+				DataSetStorage = newTestDataSetStorage(Alive(true), Exists(true))
 			})
 
 			It("Should need a request body", func() {
@@ -662,7 +734,6 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should persist the update emptying the data set", func() {
-				DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 				req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type",
 					strings.NewReader(`[]`))
 				req.Header.Add("Authorization", "Bearer the-bearer-token")
@@ -677,7 +748,6 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should fail to update if the array isn't empty", func() {
-				DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 				req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type",
 					strings.NewReader(`[
 	{"animal":"parrot", "status":"pining"}
@@ -694,6 +764,25 @@ var _ = Describe("Handlers", func() {
 				error := errors[0].(map[string]interface{})
 				Expect(error["detail"]).Should(Equal("Not implemented: you can only pass an empty JSON list"))
 			})
+
+			Context("With unavailable storage", func() {
+				It("Should propagate the error if there is a problem emptying the data set", func() {
+					DataSetStorage = newTestDataSetStorage(Alive(true), Exists(true), SomeError(fmt.Errorf("Mongo connection is down")))
+
+					req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type",
+						strings.NewReader(`[]`))
+					req.Header.Add("Authorization", "Bearer the-bearer-token")
+
+					response, err := client.Do(req)
+					Expect(err).Should(BeNil())
+					Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+
+					body, err := readResponseBody(response)
+					Expect(err).Should(BeNil())
+					Expect(body).Should(Equal(`{"errors":[{"detail":"Mongo connection is down"}]}`))
+				})
+			})
+
 		})
 	})
 })
