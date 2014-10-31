@@ -9,22 +9,31 @@ import (
 	"time"
 )
 
+// Option is a self-referential function used to configure a RequestOptions struct.
+// See http://commandcenter.blogspot.com.au/2014/01/self-referential-functions-and-design.html
+type Option func(*RequestOptions) Option
+
 // RequestOptions is the container for tweaking how NewRequest functions.
 type RequestOptions struct {
-	// MaxElapsedTime is the optional duration allowed to try to get a response from the origin server. Defaults to 5s.
-	MaxElapsedTime *time.Duration
+	// MaxElapsedTime is the duration allowed to try to get a response from the origin server.
+	MaxElapsedTime time.Duration
+}
+
+func (ro *RequestOptions) option(opts []Option) (previous Option) {
+	for _, opt := range opts {
+		previous = opt(ro)
+	}
+	return previous
 }
 
 var (
 	// ErrNotFound is an error indicating that the server returned a 404.
-	ErrNotFound           = errors.New("not found")
-	defaultMaxElapsedTime = (5 * time.Second)
-	defaultRequestOptions = RequestOptions{MaxElapsedTime: &defaultMaxElapsedTime}
+	ErrNotFound = errors.New("not found")
 )
 
 // NewRequest tries to make a request to the URL, returning the http.Response if it was successful, or an error if there was a problem.
-// An optional RequestOptions argument can be passed to specify contextual behaviour for this request, otherwise defaultOptions will be used.
-func NewRequest(url, bearerToken string, options ...RequestOptions) (*http.Response, error) {
+// Optional Option arguments can be passed to specify contextual behaviour for this request. See MaxElapsedTime.
+func NewRequest(url, bearerToken string, options ...Option) (*http.Response, error) {
 	client := http.Client{}
 
 	request, err := http.NewRequest("GET", url, nil)
@@ -36,8 +45,10 @@ func NewRequest(url, bearerToken string, options ...RequestOptions) (*http.Respo
 	request.Header.Add("Accept", "application/json")
 	request.Header.Add("User-Agent", "Performance-Platform-Client/1.0")
 
-	opts := mergeOptions(options)
-	response, err := tryGet(client, request, opts)
+	requestOptions := RequestOptions{MaxElapsedTime: 5 * time.Second}
+	requestOptions.option(options)
+
+	response, err := tryGet(client, request, requestOptions)
 
 	if err != nil {
 		return nil, err
@@ -48,6 +59,15 @@ func NewRequest(url, bearerToken string, options ...RequestOptions) (*http.Respo
 	}
 
 	return response, err
+}
+
+// MaxElapsedTime specifies the maximum duration that we should use to retry requests to the origin server. The default value is 5 seconds.
+func MaxElapsedTime(duration time.Duration) Option {
+	return func(ro *RequestOptions) Option {
+		previous := ro.MaxElapsedTime
+		ro.MaxElapsedTime = duration
+		return MaxElapsedTime(previous)
+	}
 }
 
 // ReadResponseBody reads the response body stream and returns a byte array, or an error if there was a problem.
@@ -78,7 +98,7 @@ func tryGet(client http.Client, req *http.Request, options RequestOptions) (res 
 	}
 
 	expo := backoff.NewExponentialBackOff()
-	expo.MaxElapsedTime = *options.MaxElapsedTime
+	expo.MaxElapsedTime = options.MaxElapsedTime
 
 	err = backoff.Retry(operation, expo)
 
@@ -91,20 +111,4 @@ func tryGet(client http.Client, req *http.Request, options RequestOptions) (res 
 	res = <-c
 
 	return res, err
-}
-
-func mergeOptions(options []RequestOptions) RequestOptions {
-	var opts RequestOptions
-
-	if len(options) > 0 {
-		opts = options[0]
-		// Effectively merge defaults with explicit options
-		if opts.MaxElapsedTime == nil {
-			opts.MaxElapsedTime = defaultRequestOptions.MaxElapsedTime
-		}
-	} else {
-		opts = defaultRequestOptions
-	}
-
-	return opts
 }

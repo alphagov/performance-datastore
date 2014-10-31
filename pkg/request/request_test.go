@@ -44,8 +44,7 @@ var _ = Describe("NewRequest", func() {
 		})
 		defer ts.Close()
 		// Ensure this isn't a slow test by restricting how many retries happen
-		maxElapsedTime := 5 * time.Millisecond
-		response, err := NewRequest(ts.URL, "FOO", RequestOptions{MaxElapsedTime: &maxElapsedTime})
+		response, err := NewRequest(ts.URL, "FOO", MaxElapsedTime(5*time.Millisecond))
 		Expect(response).To(BeNil())
 		Expect(err).ShouldNot(BeNil())
 	})
