@@ -19,7 +19,7 @@ type RequestOptions struct {
 	MaxElapsedTime time.Duration
 }
 
-func (ro *RequestOptions) option(opts []Option) (previous Option) {
+func (ro *RequestOptions) option(opts ...Option) (previous Option) {
 	for _, opt := range opts {
 		previous = opt(ro)
 	}
@@ -46,7 +46,7 @@ func NewRequest(url, bearerToken string, options ...Option) (*http.Response, err
 	request.Header.Add("User-Agent", "Performance-Platform-Client/1.0")
 
 	requestOptions := RequestOptions{MaxElapsedTime: 5 * time.Second}
-	requestOptions.option(options)
+	requestOptions.option(options...)
 
 	response, err := tryGet(client, request, requestOptions)
 
