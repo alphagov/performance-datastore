@@ -21,8 +21,10 @@ type ErrorInfo struct {
 	Path   string   `json:"path,omitempty"`
 }
 
-type errorResponse struct {
-	Errors []*ErrorInfo `json:"errors"`
+type APIResponse struct {
+	Status  string      `json:"status"`
+	Message string      `json:"message,omitempty"`
+	Errors  []ErrorInfo `json:"errors"`
 }
 
 var (
@@ -45,8 +47,14 @@ func MethodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
 		"Method "+r.Method+" not allowed for <"+r.URL.RequestURI()+">")
 }
 
-func renderError(w http.ResponseWriter, status int, errorString string) {
-	renderer.JSON(w, status, &errorResponse{Errors: []*ErrorInfo{&ErrorInfo{Detail: errorString}}})
+func renderError(w http.ResponseWriter, status int, errorString ...string) {
+	errors := newErrorInfos(errorString...)
+
+	var message string
+	if len(errors) == 1 {
+		message = errorString[0]
+	}
+	renderer.JSON(w, status, APIResponse{Status: "error", Message: message, Errors: errors})
 }
 
 // NewStatsDClient returns a statsd.Statsd implementation
@@ -60,4 +68,12 @@ func NewStatsDClient(host, prefix string) *statsd.StatsdClient {
 func statsDTiming(label string, start, end time.Time) {
 	StatsdClient.Timing("time."+label,
 		int64(end.Sub(start)/time.Millisecond))
+}
+
+func newErrorInfos(errorString ...string) []ErrorInfo {
+	errors := make([]ErrorInfo, len(errorString))
+	for i, detail := range errorString {
+		errors[i] = ErrorInfo{Detail: detail}
+	}
+	return errors
 }
