@@ -70,7 +70,7 @@ func CreateHandler(c martini.Context, w http.ResponseWriter, r *http.Request, pa
 			}
 			renderError(w, http.StatusBadRequest, errorMessages...)
 		} else {
-			renderer.JSON(w, http.StatusOK, map[string]string{"status": "OK"})
+			renderer.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		}
 	})
 }
@@ -89,7 +89,7 @@ func UpdateHandler(c martini.Context, w http.ResponseWriter, r *http.Request, pa
 			return
 		}
 		renderer.JSON(w, http.StatusOK, map[string]string{
-			"status":  "OK",
+			"status":  "ok",
 			"message": dataSet.Name() + " now contains 0 records"})
 	})
 }
