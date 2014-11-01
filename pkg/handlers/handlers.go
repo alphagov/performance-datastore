@@ -6,7 +6,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/alphagov/performance-datastore/pkg/config"
 	"github.com/alphagov/performance-datastore/pkg/dataset"
-	"github.com/alphagov/performance-datastore/pkg/validation"
 	"github.com/go-martini/martini"
 	"io/ioutil"
 	"net/http"
@@ -33,27 +32,9 @@ func NewHandler(maxGzipBody int, logger *logrus.Logger) http.Handler {
 	m.Get("/_status", StatusHandler)
 	m.Post("/_status", MethodNotAllowedHandler)
 	m.Get("/_status/data-sets", DataSetStatusHandler)
-	m.Get("/data/:data_group/:data_type", DataTypeHandler)
-	m.Options("/data/:data_group/:data_type", DataTypeHandler)
 	m.Post("/data/:data_group/:data_type", CreateHandler)
 	m.Put("/data/:data_group/:data_type", UpdateHandler)
 	return m
-}
-
-// DataTypeHandler is responsible for serving data type meta data
-//
-// GET|OPTIONS /data/:data_group/data_type
-func DataTypeHandler(w http.ResponseWriter, r *http.Request, params martini.Params) {
-	metaData, err := fetchDataMetaData(params["data_group"], params["data_type"])
-	if err != nil {
-		renderError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	dataStart := time.Now()
-	defer statsDTiming(fmt.Sprintf("data.%s.%s", params["data_group"], params["data_type"]),
-		dataStart, time.Now())
-	fetch(metaData, w, r)
 }
 
 // CreateHandler is responsible for creating data
@@ -153,66 +134,6 @@ func ensureIsArray(data interface{}) []interface{} {
 	default:
 		return []interface{}{data}
 	}
-}
-
-func fetch(metaData *config.DataSetMetaData, w http.ResponseWriter, r *http.Request) {
-	if metaData == nil {
-		renderError(w, http.StatusNotFound, "data_set not found")
-		return
-	}
-
-	dataSet := dataset.DataSet{DataSetStorage, *metaData}
-
-	// Is the data set queryable?
-	if !dataSet.IsQueryable() {
-		renderError(w, http.StatusNotFound, fmt.Sprintf("data_set %s not found", dataSet.Name()))
-		return
-	}
-
-	// OPTIONS?
-	if r.Method == "OPTIONS" {
-		// TODO Set allowed methods
-		w.Header().Set("Access-Control-Max-Age", "86400")
-		w.Header().Set("Access-Control-Allow-Headers",
-			"Cache-Control, GOVUK-Request-Id, Request-Id")
-		return
-	}
-
-	if err := validateRequest(r, dataSet); err != nil {
-		renderError(w, http.StatusNotFound, fmt.Sprintf(err.Error(), dataSet.Name()))
-		return
-	}
-
-	query := parseQuery(r)
-	data, err := dataSet.Execute(query)
-
-	if err != nil {
-		renderError(w, http.StatusBadRequest, fmt.Sprintf("%v: Invalid collect function", dataSet.Name()))
-		return
-	}
-
-	var body interface{}
-
-	if !dataSet.IsPublished() {
-		warning := "Warning: This data-set is unpublished. \n" +
-			"Data may be subject to change or be inaccurate."
-		w.Header().Set("Cache-Control", "no-cache")
-		body = WarningResponse{data, warning}
-	} else {
-		maxAge := dataSet.CacheDuration()
-		w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d, must-revalidate", maxAge))
-		body = data
-	}
-
-	renderer.JSON(w, http.StatusOK, &body)
-}
-
-func parseQuery(r *http.Request) dataset.Query {
-	return dataset.Query{}
-}
-
-func validateRequest(r *http.Request, dataSet dataset.DataSet) error {
-	return validation.ValidateRequestArgs(r.URL.Query(), dataSet.AllowRawQueries())
 }
 
 func validateAuthorization(r *http.Request, dataSet dataset.DataSet) (err error) {

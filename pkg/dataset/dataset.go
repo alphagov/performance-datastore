@@ -27,10 +27,6 @@ type DataSet struct {
 	MetaData config.DataSetMetaData
 }
 
-// Query defines an abstraction around how we query DataSetStorage implementations
-type Query struct {
-}
-
 // StalenessResult defines what is returned when we query to see how stale a DataSet is.
 type StalenessResult struct {
 	MaxExpectedAge   *int64
@@ -80,11 +76,6 @@ func (d DataSet) Append(data []interface{}) []error {
 func (d DataSet) Empty() error {
 	d.createIfNecessary()
 	return d.Storage.Empty(d.Name())
-}
-
-// Execute a Query against this DataSet
-func (d DataSet) Execute(query Query) (interface{}, error) {
-	return nil, nil
 }
 
 func (d DataSet) isRealtime() bool {
