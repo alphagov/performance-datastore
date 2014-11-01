@@ -17,11 +17,14 @@ import (
 	"github.com/alphagov/performance-datastore/pkg/config"
 	"github.com/alphagov/performance-datastore/pkg/dataset"
 
+	"reflect"
 	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	"github.com/onsi/gomega/types"
 )
 
 type TestDataSetStorage struct {
@@ -36,11 +39,11 @@ func (mock *TestDataSetStorage) Alive() bool {
 }
 
 func (mock *TestDataSetStorage) Create(name string, cappedSize int64) error {
-	return nil
+	return mock.error
 }
 
 func (mock *TestDataSetStorage) Empty(name string) error {
-	return nil
+	return mock.error
 }
 
 func (mock *TestDataSetStorage) Exists(name string) bool {
@@ -55,8 +58,51 @@ func (mock *TestDataSetStorage) SaveRecord(name string, record map[string]interf
 	return mock.error
 }
 
-func newTestDataSetStorage(alive bool, lastUpdated *time.Time, exists bool, err error) dataset.DataSetStorage {
-	return &TestDataSetStorage{alive, lastUpdated, exists, err}
+func (mock *TestDataSetStorage) options(opts ...TestDataSetStorageOption) (previous TestDataSetStorageOption) {
+	for _, opt := range opts {
+		previous = opt(mock)
+	}
+	return previous
+}
+
+type TestDataSetStorageOption func(*TestDataSetStorage) TestDataSetStorageOption
+
+func Alive(alive bool) TestDataSetStorageOption {
+	return func(t *TestDataSetStorage) TestDataSetStorageOption {
+		previous := t.alive
+		t.alive = alive
+		return Alive(previous)
+	}
+}
+
+func Exists(exists bool) TestDataSetStorageOption {
+	return func(t *TestDataSetStorage) TestDataSetStorageOption {
+		previous := t.exists
+		t.exists = exists
+		return Exists(previous)
+	}
+}
+
+func SomeError(err error) TestDataSetStorageOption {
+	return func(t *TestDataSetStorage) TestDataSetStorageOption {
+		previous := t.error
+		t.error = err
+		return SomeError(previous)
+	}
+}
+
+func LastUpdated(lastUpdated *time.Time) TestDataSetStorageOption {
+	return func(t *TestDataSetStorage) TestDataSetStorageOption {
+		previous := t.lastUpdated
+		t.lastUpdated = lastUpdated
+		return LastUpdated(previous)
+	}
+}
+
+func newTestDataSetStorage(options ...TestDataSetStorageOption) dataset.DataSetStorage {
+	result := TestDataSetStorage{}
+	result.options(options...)
+	return &result
 }
 
 type TestConfigAPIClient struct {
@@ -146,6 +192,14 @@ func newHandler(maxBodySize int) http.Handler {
 	return NewHandler(maxBodySize, logger)
 }
 
+func newErrorAPIResponse(errorDetail string) APIResponse {
+	return APIResponse{
+		Status:  "error",
+		Message: errorDetail,
+		Errors: []ErrorInfo{
+			ErrorInfo{Detail: errorDetail}}}
+}
+
 var _ = Describe("Handlers", func() {
 
 	var testServer *httptest.Server
@@ -161,57 +215,64 @@ var _ = Describe("Handlers", func() {
 	})
 
 	Describe("Status", func() {
-		It("responds with a status of OK", func() {
-			DataSetStorage = newTestDataSetStorage(true, nil, false, nil)
+		Context("With working Storage", func() {
 
-			response, err := http.Get(testServer.URL + "/_status")
-			Expect(err).To(BeNil())
-			Expect(response.StatusCode).To(Equal(http.StatusOK))
+			BeforeEach(func() {
+				DataSetStorage = newTestDataSetStorage(Alive(true))
+			})
 
-			body, err := readResponseBody(response)
-			Expect(err).To(BeNil())
-			Expect(body).To(Equal(`{"message":"database seems fine","status":"ok"}`))
+			It("responds with a status of OK", func() {
+				response, err := http.Get(testServer.URL + "/_status")
+				Expect(err).To(BeNil())
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+				Expect(response).To(EqualAPIResponse(APIResponse{
+					Status:  "ok",
+					Message: "database seems fine"}))
+			})
+
+			It("responds to HEAD requests", func() {
+				response, err := http.Head(testServer.URL + "/_status")
+				Expect(err).To(BeNil())
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
+			})
+
+			It("does not respond to POST requests", func() {
+				response, err := http.Post(testServer.URL+"/_status",
+					"application/json",
+					strings.NewReader(`{"foo":"foo"}`))
+				Expect(err).To(BeNil())
+				// This is the preferred implementation but Martini routing doesn't do
+				// that – yet!
+				// So we've added an explicit route and handler for this
+				Expect(response.StatusCode).To(Equal(http.StatusMethodNotAllowed))
+			})
 		})
 
-		It("responds with a status of ruh roh when the storage is down", func() {
-			DataSetStorage = newTestDataSetStorage(false, nil, false, nil)
+		Context("with unavailable storage", func() {
+			It("responds with a status of ruh roh when the storage is down", func() {
+				DataSetStorage = newTestDataSetStorage(Alive(false))
 
-			response, err := http.Get(testServer.URL + "/_status")
-			Expect(err).To(BeNil())
-			Expect(response.StatusCode).To(Equal(http.StatusInternalServerError))
+				response, err := http.Get(testServer.URL + "/_status")
+				Expect(err).To(BeNil())
+				Expect(response.StatusCode).To(Equal(http.StatusInternalServerError))
 
-			body, err := readResponseBody(response)
-			Expect(err).To(BeNil())
-			Expect(body).To(Equal(`{"errors":[{"detail":"cannot connect to database"}]}`))
-		})
-
-		It("responds to HEAD requests", func() {
-			DataSetStorage = newTestDataSetStorage(true, nil, false, nil)
-
-			response, err := http.Head(testServer.URL + "/_status")
-			Expect(err).To(BeNil())
-			Expect(response.StatusCode).To(Equal(http.StatusOK))
-		})
-
-		It("does not respond to POST requests", func() {
-			DataSetStorage = newTestDataSetStorage(true, nil, false, nil)
-
-			response, err := http.Post(testServer.URL+"/_status",
-				"application/json",
-				strings.NewReader(`{"foo":"foo"}`))
-			Expect(err).To(BeNil())
-			// This is the preferred implementation but Martini routing doesn't do
-			// that – yet!
-			// So we've added an explicit route and handler for this
-			Expect(response.StatusCode).To(Equal(http.StatusMethodNotAllowed))
+				Expect(response).To(EqualAPIResponse(APIResponse{
+					Status:  "error",
+					Message: "cannot connect to database",
+					Errors: []ErrorInfo{
+						ErrorInfo{Detail: "cannot connect to database"}}}))
+			})
 		})
 	})
 
 	Describe("DataSets", func() {
 
+		var roughly30DaysAgo time.Time
+
 		BeforeEach(func() {
-			roughly30DaysAgo := time.Now().Add(time.Duration(-24*30) * time.Hour)
-			DataSetStorage = newTestDataSetStorage(true, &roughly30DaysAgo, false, nil)
+			roughly30DaysAgo = time.Now().Add(time.Duration(-24*30) * time.Hour)
+			DataSetStorage = newTestDataSetStorage(Alive(true), LastUpdated(&roughly30DaysAgo))
 		})
 
 		It("responds with a status of OK when there are no datasets", func() {
@@ -224,9 +285,8 @@ var _ = Describe("Handlers", func() {
 			Expect(err).To(BeNil())
 			Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-			body, err := readResponseBody(response)
-			Expect(err).To(BeNil())
-			Expect(body).To(Equal(`{"status":"ok"}`))
+			Expect(response).To(EqualAPIResponse(APIResponse{
+				Status: "ok"}))
 		})
 
 		It("responds with a status of ruh roh when unable to talk to the config API", func() {
@@ -239,9 +299,9 @@ var _ = Describe("Handlers", func() {
 			Expect(err).To(BeNil())
 			Expect(response.StatusCode).To(Equal(http.StatusInternalServerError))
 
-			body, err := readResponseBody(response)
-			Expect(err).To(BeNil())
-			Expect(body).To(Equal(`{"errors":[{"detail":"Unable to connect to host"}]}`))
+			Expect(response).To(EqualAPIResponse(APIResponse{Status: "error",
+				Message: "Unable to connect to host",
+				Errors:  []ErrorInfo{ErrorInfo{Detail: "Unable to connect to host"}}}))
 		})
 
 		It("responds with a status of OK when there are no stale datasets", func() {
@@ -257,19 +317,17 @@ var _ = Describe("Handlers", func() {
 			Expect(err).To(BeNil())
 			Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-			body, err := readResponseBody(response)
-			Expect(err).To(BeNil())
-			Expect(body).To(Equal(`{"status":"ok"}`))
+			Expect(response).To(EqualAPIResponse(APIResponse{Status: "ok"}))
 		})
 
 		It("responds with a status of ruh roh when there are stale datasets", func() {
 			testServer := testHandlerServer(DataSetStatusHandler)
 			defer testServer.Close()
 
-			stale := config.DataSetMetaData{}
-			stale.Published = true
 			maxExpectedAge := int64(8400)
-			stale.MaxExpectedAge = &maxExpectedAge
+			stale := config.DataSetMetaData{Name: "the-stale-one",
+				Published:      true,
+				MaxExpectedAge: &maxExpectedAge}
 
 			ConfigAPIClient = newTestConfigAPIClient(nil, nil,
 				[]config.DataSetMetaData{
@@ -280,9 +338,11 @@ var _ = Describe("Handlers", func() {
 			Expect(err).To(BeNil())
 			Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-			body, err := readResponseBody(response)
-			Expect(err).To(BeNil())
-			Expect(body).To(Equal(`{"status":"not okay","detail":"1 data-set is out of date"}`))
+			Expect(response).To(EqualAPIResponse(APIResponse{Status: "not okay",
+				Message: "1 data-set is out of date",
+				Errors: []ErrorInfo{
+					ErrorInfo{
+						Detail: "name: the-stale-one, seconds-out-of-date: 2592000, last-updated: " + roughly30DaysAgo.String() + ", max-age-expected: 8400"}}}))
 		})
 	})
 
@@ -313,9 +373,7 @@ var _ = Describe("Handlers", func() {
 				Expect(response.StatusCode).Should(Equal(http.StatusUnauthorized))
 				Expect(response.Header.Get("WWW-Authenticate")).Should(Equal("bearer"))
 
-				body, err := readResponseBody(response)
-				Expect(err).To(BeNil())
-				Expect(body).To(Equal(`{"errors":[{"detail":"Expected header of form: Authorization: Bearer token"}]}`))
+				Expect(response).To(EqualAPIResponse(newErrorAPIResponse("Expected header of form: Authorization: Bearer token")))
 			})
 
 			It("Should fail with an Authorization required response when the Authorization header isn't a valid bearer token", func() {
@@ -331,9 +389,7 @@ var _ = Describe("Handlers", func() {
 				Expect(response.StatusCode).Should(Equal(http.StatusUnauthorized))
 				Expect(response.Header.Get("WWW-Authenticate")).Should(Equal("bearer"))
 
-				body, err := readResponseBody(response)
-				Expect(err).To(BeNil())
-				Expect(body).To(Equal(`{"errors":[{"detail":"Unauthorized: Invalid bearer token '' for 'the-dataset'"}]}`))
+				Expect(response).To(EqualAPIResponse(newErrorAPIResponse("Unauthorized: Invalid bearer token '' for 'the-dataset'")))
 			})
 
 			It("Should fail with an Authorization required response when the Authorization bearer token does not match the data set bearer token", func() {
@@ -349,9 +405,7 @@ var _ = Describe("Handlers", func() {
 				Expect(response.StatusCode).Should(Equal(http.StatusUnauthorized))
 				Expect(response.Header.Get("WWW-Authenticate")).Should(Equal("bearer"))
 
-				body, err := readResponseBody(response)
-				Expect(err).To(BeNil())
-				Expect(body).To(Equal(`{"errors":[{"detail":"Unauthorized: Invalid bearer token '' for 'the-dataset'"}]}`))
+				Expect(response).To(EqualAPIResponse(newErrorAPIResponse("Unauthorized: Invalid bearer token '' for 'the-dataset'")))
 			})
 
 			It("Should fail with an Authorization required response when the Authorization bearer token does not match the data set bearer token", func() {
@@ -367,9 +421,7 @@ var _ = Describe("Handlers", func() {
 				Expect(response.StatusCode).Should(Equal(http.StatusUnauthorized))
 				Expect(response.Header.Get("WWW-Authenticate")).Should(Equal("bearer"))
 
-				body, err := readResponseBody(response)
-				Expect(err).To(BeNil())
-				Expect(body).To(Equal(`{"errors":[{"detail":"Unauthorized: Invalid bearer token '' for 'the-dataset'"}]}`))
+				Expect(response).To(EqualAPIResponse(newErrorAPIResponse("Unauthorized: Invalid bearer token '' for 'the-dataset'")))
 			})
 		})
 
@@ -378,6 +430,7 @@ var _ = Describe("Handlers", func() {
 				ConfigAPIClient = newTestConfigAPIClient(nil,
 					&config.DataSetMetaData{BearerToken: "the-bearer-token", Name: "the-dataset"},
 					nil)
+				DataSetStorage = newTestDataSetStorage(Alive(true), Exists(true))
 			})
 
 			It("Should need a request body", func() {
@@ -389,9 +442,7 @@ var _ = Describe("Handlers", func() {
 				Expect(err).Should(BeNil())
 				Expect(response.StatusCode).Should(Equal(http.StatusBadRequest))
 
-				body, err := readResponseBody(response)
-				Expect(err).Should(BeNil())
-				Expect(body).Should(Equal(`{"errors":[{"detail":"Expected JSON request body but received zero bytes"}]}`))
+				Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Expected JSON request body but received 0 bytes")))
 			})
 
 			It("Should need a JSON request body", func() {
@@ -404,13 +455,10 @@ var _ = Describe("Handlers", func() {
 				Expect(err).Should(BeNil())
 				Expect(response.StatusCode).Should(Equal(http.StatusBadRequest))
 
-				body, err := readResponseBody(response)
-				Expect(err).Should(BeNil())
-				Expect(body).Should(Equal(`{"errors":[{"detail":"Error parsing JSON: invalid character 'h' in literal true (expecting 'r')"}]}`))
+				Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Error parsing JSON: invalid character 'h' in literal true (expecting 'r')")))
 			})
 
 			It("Should persist the update for a single object", func() {
-				DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
 					strings.NewReader(`{"animal":"parrot", "status":"pining"}`))
 				req.Header.Add("Authorization", "Bearer the-bearer-token")
@@ -420,13 +468,10 @@ var _ = Describe("Handlers", func() {
 				Expect(err).Should(BeNil())
 				Expect(response.StatusCode).Should(Equal(http.StatusOK))
 
-				body, err := readResponseBody(response)
-				Expect(err).Should(BeNil())
-				Expect(body).Should(Equal(`{"status":"OK"}`))
+				Expect(response).Should(EqualAPIResponse(APIResponse{Status: "OK"}))
 			})
 
 			It("Should persist the update for an array of objects", func() {
-				DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
 					strings.NewReader(`[
 	{"animal":"parrot", "status":"pining"},
@@ -439,39 +484,48 @@ var _ = Describe("Handlers", func() {
 				Expect(err).Should(BeNil())
 				Expect(response.StatusCode).Should(Equal(http.StatusOK))
 
-				body, err := readResponseBody(response)
-				Expect(err).Should(BeNil())
-				Expect(body).Should(Equal(`{"status":"OK"}`))
+				Expect(response).Should(EqualAPIResponse(APIResponse{Status: "OK"}))
 			})
 
-			It("Should propagate failure to persist the updates", func() {
-				DataSetStorage = newTestDataSetStorage(true, nil, true, fmt.Errorf("Mongo connection is down"))
-				StatsdClient = newTestStatsdClient()
-
+			It("Should fail when provided with invalid data", func() {
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
-					strings.NewReader(`{"animal":"parrot", "status":"pining"}`))
+					strings.NewReader(`{"_animal":"parrot", "status":"pining"}`))
 				req.Header.Add("Authorization", "Bearer the-bearer-token")
 
 				response, err := client.Do(req)
 
 				Expect(err).Should(BeNil())
-				Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+				Expect(response.StatusCode).Should(Equal(http.StatusBadRequest))
 
-				body, err := readResponseBody(response)
-				Expect(err).Should(BeNil())
-				Expect(body).Should(Equal(`{"errors":[{"detail":"Mongo connection is down"}]}`))
+				Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("_animal is not a recognised internal field")))
+			})
 
-				// Check that the dataset was picked out of the context and the correct thing
-				// would have been sent to statsd
-				testStatsd := StatsdClient.(*testStatsdClient)
-				Expect(len(testStatsd.incOps)).Should(Equal(1))
-				Expect(testStatsd.incOps[0].stat).Should(Equal(`write.error.the-dataset`))
+			Context("With unavailable storage", func() {
+				It("Should propagate failure to persist the updates", func() {
+					DataSetStorage = newTestDataSetStorage(Alive(true), Exists(true), SomeError(fmt.Errorf("Mongo connection is down")))
+					StatsdClient = newTestStatsdClient()
+
+					req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type",
+						strings.NewReader(`{"animal":"parrot", "status":"pining"}`))
+					req.Header.Add("Authorization", "Bearer the-bearer-token")
+
+					response, err := client.Do(req)
+
+					Expect(err).Should(BeNil())
+					Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+
+					Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Mongo connection is down")))
+
+					// Check that the dataset was picked out of the context and the correct thing
+					// would have been sent to statsd
+					testStatsd := StatsdClient.(*testStatsdClient)
+					Expect(testStatsd.incOps).Should(HaveLen(1))
+					Expect(testStatsd.incOps[0].stat).Should(Equal(`write.error.the-dataset`))
+				})
 			})
 
 			Context("With compressed requests", func() {
 				It("Should fail if the request does not have a Content-Encoding header", func() {
-					DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
-
 					var b bytes.Buffer
 					w := gzip.NewWriter(&b)
 					w.Write([]byte(`{"animal":"parrot", "status":"pining"}`))
@@ -485,14 +539,22 @@ var _ = Describe("Handlers", func() {
 					Expect(err).Should(BeNil())
 					Expect(response.StatusCode).Should(Equal(http.StatusBadRequest))
 
-					body, err := readResponseBody(response)
+					Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Error parsing JSON: invalid character '\\x1f' looking for beginning of value")))
+				})
+
+				It("Should fail if the request does not have a body", func() {
+					req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
+					req.Header.Add("Authorization", "Bearer the-bearer-token")
+
+					response, err := client.Do(req)
+
 					Expect(err).Should(BeNil())
-					Expect(body).Should(Equal(`{"errors":[{"detail":"Error parsing JSON: invalid character '\\x1f' looking for beginning of value"}]}`))
+					Expect(response.StatusCode).Should(Equal(http.StatusBadRequest))
+
+					Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Expected JSON request body but received 0 bytes")))
 				})
 
 				It("Should succeed if the request has a Content-Encoding header", func() {
-					DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
-
 					var b bytes.Buffer
 					w := gzip.NewWriter(&b)
 					w.Write([]byte(`{"animal":"parrot", "status":"pining"}`))
@@ -507,17 +569,14 @@ var _ = Describe("Handlers", func() {
 					Expect(err).Should(BeNil())
 					Expect(response.StatusCode).Should(Equal(http.StatusOK))
 
-					body, err := readResponseBody(response)
-					Expect(err).Should(BeNil())
-					Expect(body).Should(Equal(`{"status":"OK"}`))
+					Expect(response).Should(EqualAPIResponse(APIResponse{
+						Status: "OK"}))
 				})
 
 				It("Should fail if the request is too big", func() {
 					testServer.Close()
 					handler := newHandler(10)
 					testServer = testHandlerServer(handler)
-
-					DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 
 					var b bytes.Buffer
 					w := gzip.NewWriter(&b)
@@ -533,9 +592,7 @@ var _ = Describe("Handlers", func() {
 					Expect(err).Should(BeNil())
 					Expect(response.StatusCode).Should(Equal(http.StatusRequestEntityTooLarge))
 
-					body, err := readResponseBody(response)
-					Expect(err).Should(BeNil())
-					Expect(body).Should(Equal(`{"errors":[{"detail":"Maximum upload size encountered. Treating as a potential zip bomb."}]}`))
+					Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Maximum upload size encountered. Treating as a potential zip bomb.")))
 				})
 			})
 		})
@@ -567,9 +624,7 @@ var _ = Describe("Handlers", func() {
 				Expect(response.StatusCode).Should(Equal(http.StatusUnauthorized))
 				Expect(response.Header.Get("WWW-Authenticate")).Should(Equal("bearer"))
 
-				body, err := readResponseBody(response)
-				Expect(err).Should(BeNil())
-				Expect(body).Should(Equal(`{"errors":[{"detail":"Expected header of form: Authorization: Bearer token"}]}`))
+				Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Expected header of form: Authorization: Bearer token")))
 			})
 
 			It("Should fail with an Authorization required response when the Authorization header isn't a valid bearer token", func() {
@@ -585,9 +640,7 @@ var _ = Describe("Handlers", func() {
 				Expect(response.StatusCode).Should(Equal(http.StatusUnauthorized))
 				Expect(response.Header.Get("WWW-Authenticate")).Should(Equal("bearer"))
 
-				body, err := readResponseBody(response)
-				Expect(err).Should(BeNil())
-				Expect(body).Should(Equal(`{"errors":[{"detail":"Unauthorized: Invalid bearer token '' for 'the-dataset'"}]}`))
+				Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Unauthorized: Invalid bearer token '' for 'the-dataset'")))
 			})
 
 			It("Should fail with an Authorization required response when the Authorization bearer token does not match the data set bearer token", func() {
@@ -602,9 +655,7 @@ var _ = Describe("Handlers", func() {
 				Expect(response.StatusCode).Should(Equal(http.StatusUnauthorized))
 				Expect(response.Header.Get("WWW-Authenticate")).Should(Equal("bearer"))
 
-				body, err := readResponseBody(response)
-				Expect(err).Should(BeNil())
-				Expect(body).Should(Equal(`{"errors":[{"detail":"Unauthorized: Invalid bearer token '' for 'the-dataset'"}]}`))
+				Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Unauthorized: Invalid bearer token '' for 'the-dataset'")))
 			})
 
 			It("Should fail with an Authorization required response when the Authorization bearer token does not match the data set bearer token", func() {
@@ -619,9 +670,7 @@ var _ = Describe("Handlers", func() {
 				Expect(response.StatusCode).Should(Equal(http.StatusUnauthorized))
 				Expect(response.Header.Get("WWW-Authenticate")).Should(Equal("bearer"))
 
-				body, err := readResponseBody(response)
-				Expect(err).Should(BeNil())
-				Expect(body).Should(Equal(`{"errors":[{"detail":"Unauthorized: Invalid bearer token '' for 'the-dataset'"}]}`))
+				Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Unauthorized: Invalid bearer token '' for 'the-dataset'")))
 			})
 		})
 
@@ -632,6 +681,7 @@ var _ = Describe("Handlers", func() {
 						BearerToken: "the-bearer-token",
 						Name:        "the-dataset"},
 					nil)
+				DataSetStorage = newTestDataSetStorage(Alive(true), Exists(true))
 			})
 
 			It("Should need a request body", func() {
@@ -642,9 +692,7 @@ var _ = Describe("Handlers", func() {
 				Expect(err).Should(BeNil())
 				Expect(response.StatusCode).Should(Equal(http.StatusBadRequest))
 
-				body, err := readResponseBody(response)
-				Expect(err).Should(BeNil())
-				Expect(body).Should(Equal(`{"errors":[{"detail":"Expected JSON request body but received zero bytes"}]}`))
+				Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Expected JSON request body but received 0 bytes")))
 			})
 
 			It("Should need a JSON request body", func() {
@@ -656,13 +704,10 @@ var _ = Describe("Handlers", func() {
 				Expect(err).Should(BeNil())
 				Expect(response.StatusCode).Should(Equal(http.StatusBadRequest))
 
-				body, err := readResponseBody(response)
-				Expect(err).Should(BeNil())
-				Expect(body).Should(Equal(`{"errors":[{"detail":"Error parsing JSON: invalid character 'h' in literal true (expecting 'r')"}]}`))
+				Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Error parsing JSON: invalid character 'h' in literal true (expecting 'r')")))
 			})
 
 			It("Should persist the update emptying the data set", func() {
-				DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 				req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type",
 					strings.NewReader(`[]`))
 				req.Header.Add("Authorization", "Bearer the-bearer-token")
@@ -671,13 +716,12 @@ var _ = Describe("Handlers", func() {
 				Expect(err).Should(BeNil())
 				Expect(response.StatusCode).Should(Equal(http.StatusOK))
 
-				body, err := readResponseBody(response)
-				Expect(err).Should(BeNil())
-				Expect(body).Should(Equal(`{"message":"the-dataset now contains 0 records","status":"OK"}`))
+				Expect(response).Should(EqualAPIResponse(APIResponse{
+					Status:  "OK",
+					Message: "the-dataset now contains 0 records"}))
 			})
 
 			It("Should fail to update if the array isn't empty", func() {
-				DataSetStorage = newTestDataSetStorage(true, nil, true, nil)
 				req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type",
 					strings.NewReader(`[
 	{"animal":"parrot", "status":"pining"}
@@ -688,12 +732,66 @@ var _ = Describe("Handlers", func() {
 				Expect(err).Should(BeNil())
 				Expect(response.StatusCode).Should(Equal(http.StatusBadRequest))
 
-				doc := Unmarshal(response.Body)
-				errors := doc["errors"].([]interface{})
-				Expect(len(errors)).Should(Equal(1))
-				error := errors[0].(map[string]interface{})
-				Expect(error["detail"]).Should(Equal("Not implemented: you can only pass an empty JSON list"))
+				Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Not implemented: you can only pass an empty JSON list")))
 			})
+
+			Context("With unavailable storage", func() {
+				It("Should propagate the error if there is a problem emptying the data set", func() {
+					DataSetStorage = newTestDataSetStorage(Alive(true), Exists(true), SomeError(fmt.Errorf("Mongo connection is down")))
+
+					req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type",
+						strings.NewReader(`[]`))
+					req.Header.Add("Authorization", "Bearer the-bearer-token")
+
+					response, err := client.Do(req)
+					Expect(err).Should(BeNil())
+					Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+
+					Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Mongo connection is down")))
+				})
+			})
+
 		})
 	})
 })
+
+// APIResponseMatcher implements gomega.types.GomegaMatcher
+type APIResponseMatcher struct {
+	expected   APIResponse
+	actualBody string
+}
+
+// EqualAPIResponse is a GomegaMatcher to look at the response from API calls
+func EqualAPIResponse(expected APIResponse) types.GomegaMatcher {
+	return &APIResponseMatcher{expected: expected}
+}
+
+func (matcher *APIResponseMatcher) Match(actual interface{}) (success bool, err error) {
+	response, ok := actual.(*http.Response)
+	if !ok {
+		return false, fmt.Errorf("EqualAPIResponse matcher expects an http.Response")
+	}
+
+	var r APIResponse
+	matcher.actualBody, err = readResponseBody(response)
+
+	if err != nil {
+		return false, fmt.Errorf("Failed to read response: %s", err.Error())
+	}
+
+	err = json.NewDecoder(strings.NewReader(matcher.actualBody)).Decode(&r)
+
+	if err != nil {
+		return false, fmt.Errorf("Failed to decode JSON: %s", err.Error())
+	}
+
+	return reflect.DeepEqual(r, matcher.expected), nil
+}
+
+func (matcher *APIResponseMatcher) FailureMessage(actual interface{}) string {
+	return fmt.Sprintf("Expected\n\t%#v\nto contain the JSON representation of\n\t%#v", matcher.actualBody, matcher.expected)
+}
+
+func (matcher *APIResponseMatcher) NegatedFailureMessage(actual interface{}) string {
+	return fmt.Sprintf("Expected\n\t%#v\nnot to contain the JSON representation of\n\t%#v", matcher.actualBody, matcher.expected)
+}

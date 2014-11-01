@@ -64,7 +64,11 @@ func CreateHandler(c martini.Context, w http.ResponseWriter, r *http.Request, pa
 		errors := dataSet.Append(jsonArray)
 
 		if len(errors) > 0 {
-			renderError(w, http.StatusBadRequest, "All the errors")
+			errorMessages := make([]string, len(errors))
+			for i, e := range errors {
+				errorMessages[i] = e.Error()
+			}
+			renderError(w, http.StatusBadRequest, errorMessages...)
 		} else {
 			renderer.JSON(w, http.StatusOK, map[string]string{"status": "OK"})
 		}
@@ -126,7 +130,7 @@ func handleWriteRequest(
 	}
 
 	if len(jsonBytes) == 0 {
-		renderError(w, http.StatusBadRequest, "Expected JSON request body but received zero bytes")
+		renderError(w, http.StatusBadRequest, "Expected JSON request body but received 0 bytes")
 		return
 	}
 

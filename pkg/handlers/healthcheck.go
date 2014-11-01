@@ -53,11 +53,7 @@ func DataSetStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	setStatusHeaders(w)
 
-	if status != nil {
-		renderer.JSON(w, http.StatusOK, status)
-	} else {
-		renderer.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	}
+	renderer.JSON(w, http.StatusOK, status)
 }
 
 func checkFreshness(
@@ -95,31 +91,37 @@ func setStatusHeaders(w http.ResponseWriter) {
 	w.Header().Set("Cache-Control", "none")
 }
 
-func summariseStaleness(failing chan DataSetStatus) *ErrorInfo {
+func summariseStaleness(failing chan DataSetStatus) APIResponse {
 	// close the channel so that we don't block trying to read when we get to the end
 	close(failing)
-	allGood := true
 
 	message := "All data-sets are in date"
 
 	var failures []DataSetStatus
 
 	for failure := range failing {
-		allGood = false
 		failures = append(failures, failure)
 	}
 
-	if allGood {
-		return nil
+	if len(failures) == 0 {
+		return APIResponse{
+			Status: "ok"}
 	}
 
 	message = fmt.Sprintf("%d %s out of date", len(failures), pluraliseDataSets(failures))
 
-	return &ErrorInfo{
-		Status: "not okay",
-		Detail: message,
-		// Other: failures,
+	errorStrings := make([]string, len(failures))
+
+	for i, f := range failures {
+		errorStrings[i] = f.String()
 	}
+
+	errors := newErrorInfos(errorStrings...)
+
+	return APIResponse{
+		Status:  "not okay",
+		Message: message,
+		Errors:  errors}
 
 }
 
