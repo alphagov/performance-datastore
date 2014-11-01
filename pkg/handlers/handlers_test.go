@@ -468,7 +468,7 @@ var _ = Describe("Handlers", func() {
 				Expect(err).Should(BeNil())
 				Expect(response.StatusCode).Should(Equal(http.StatusOK))
 
-				Expect(response).Should(EqualAPIResponse(APIResponse{Status: "OK"}))
+				Expect(response).Should(EqualAPIResponse(APIResponse{Status: "ok"}))
 			})
 
 			It("Should persist the update for an array of objects", func() {
@@ -484,7 +484,7 @@ var _ = Describe("Handlers", func() {
 				Expect(err).Should(BeNil())
 				Expect(response.StatusCode).Should(Equal(http.StatusOK))
 
-				Expect(response).Should(EqualAPIResponse(APIResponse{Status: "OK"}))
+				Expect(response).Should(EqualAPIResponse(APIResponse{Status: "ok"}))
 			})
 
 			It("Should fail when provided with invalid data", func() {
@@ -570,7 +570,7 @@ var _ = Describe("Handlers", func() {
 					Expect(response.StatusCode).Should(Equal(http.StatusOK))
 
 					Expect(response).Should(EqualAPIResponse(APIResponse{
-						Status: "OK"}))
+						Status: "ok"}))
 				})
 
 				It("Should fail if the request is too big", func() {
@@ -717,7 +717,7 @@ var _ = Describe("Handlers", func() {
 				Expect(response.StatusCode).Should(Equal(http.StatusOK))
 
 				Expect(response).Should(EqualAPIResponse(APIResponse{
-					Status:  "OK",
+					Status:  "ok",
 					Message: "the-dataset now contains 0 records"}))
 			})
 
