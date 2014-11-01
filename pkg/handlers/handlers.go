@@ -14,11 +14,12 @@ import (
 	"time"
 )
 
-// WarningResponse is an JSON response used to indicate a potential problem.
-type WarningResponse struct {
-	Data    interface{}
-	Warning string `json:"warning"`
-}
+// goodJSONContinuation is the signature of the function called by handleWriteRequest if:
+//
+// - the context request is JSON
+// - the request is correctly authorised
+// - the DataSet seems good
+type goodJSONContinuation func(jsonArray []interface{}, dataSet dataset.DataSet)
 
 // NewHandler returns an http.Handler implementation for the server.
 func NewHandler(maxGzipBody int, logger *logrus.Logger) http.Handler {
@@ -51,7 +52,8 @@ func CreateHandler(c martini.Context, w http.ResponseWriter, r *http.Request, pa
 			}
 			renderError(w, http.StatusBadRequest, errorMessages...)
 		} else {
-			renderer.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
+			renderer.JSON(w, http.StatusOK, APIResponse{
+				Status: "ok"})
 		}
 	})
 }
@@ -69,9 +71,9 @@ func UpdateHandler(c martini.Context, w http.ResponseWriter, r *http.Request, pa
 			renderError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		renderer.JSON(w, http.StatusOK, map[string]string{
-			"status":  "ok",
-			"message": dataSet.Name() + " now contains 0 records"})
+		renderer.JSON(w, http.StatusOK, APIResponse{
+			Status:  "ok",
+			Message: dataSet.Name() + " now contains 0 records"})
 	})
 }
 
@@ -80,7 +82,7 @@ func handleWriteRequest(
 	w http.ResponseWriter,
 	r *http.Request,
 	params martini.Params,
-	f func(arr []interface{}, ds dataset.DataSet)) {
+	continuation goodJSONContinuation) {
 
 	metaData, err := fetchDataMetaData(params["data_group"], params["data_type"])
 	if err != nil {
@@ -124,7 +126,7 @@ func handleWriteRequest(
 	}
 
 	jsonArray := ensureIsArray(data)
-	f(jsonArray, dataSet)
+	continuation(jsonArray, dataSet)
 }
 
 func ensureIsArray(data interface{}) []interface{} {

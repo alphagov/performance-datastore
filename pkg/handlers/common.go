@@ -21,6 +21,8 @@ type ErrorInfo struct {
 	Path   string   `json:"path,omitempty"`
 }
 
+// APIResponse is used for all JSON API responses.
+// See jsonapi.org/format/
 type APIResponse struct {
 	Status  string      `json:"status"`
 	Message string      `json:"message,omitempty"`
@@ -54,7 +56,10 @@ func renderError(w http.ResponseWriter, status int, errorString ...string) {
 	if len(errors) == 1 {
 		message = errorString[0]
 	}
-	renderer.JSON(w, status, APIResponse{Status: "error", Message: message, Errors: errors})
+	renderer.JSON(w, status, APIResponse{
+		Status:  "error",
+		Message: message,
+		Errors:  errors})
 }
 
 // NewStatsDClient returns a statsd.Statsd implementation
