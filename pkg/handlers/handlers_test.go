@@ -430,6 +430,19 @@ var _ = Describe("Handlers", func() {
 			defer testServer.Close()
 		})
 
+		It("Should fail when the config API is unavailable", func() {
+			ConfigAPIClient = newTestConfigAPIClient(ClientError(fmt.Errorf("Unable to connect to host")))
+
+			req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
+
+			response, err := client.Do(req)
+
+			Expect(err).Should(BeNil())
+			Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+
+			Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Unable to connect to host")))
+		})
+
 		Context("When there is no valid Authorization credentials", func() {
 			It("Should fail with an Authorization required response when there is no Authorization header", func() {
 				ConfigAPIClient = newTestConfigAPIClient(
@@ -675,6 +688,19 @@ var _ = Describe("Handlers", func() {
 
 		AfterEach(func() {
 			defer testServer.Close()
+		})
+
+		It("Should fail when the config API is unavailable", func() {
+			ConfigAPIClient = newTestConfigAPIClient(ClientError(fmt.Errorf("Unable to connect to host")))
+
+			req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type", nil)
+
+			response, err := client.Do(req)
+
+			Expect(err).Should(BeNil())
+			Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+
+			Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Unable to connect to host")))
 		})
 
 		Context("When there is no valid Authorization credentials", func() {
