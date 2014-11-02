@@ -40,7 +40,18 @@ var _ = Describe("NewRequest", func() {
 
 	It("handles bad networking from the origin server", func() {
 		ts := testServer(func(w http.ResponseWriter, r *http.Request) {
-			panic("Oh dear")
+			hj, ok := w.(http.Hijacker)
+			if !ok {
+				panic("webserver doesn't support hijacking – failing the messy way")
+				return
+			}
+			conn, _, err := hj.Hijack()
+			if err != nil {
+				panic("webserver doesn't support hijacking – failing the messy way")
+				return
+			}
+			// Fail in a clean way so that we don't clutter the output
+			conn.Close()
 		})
 		defer ts.Close()
 		// Ensure this isn't a slow test by restricting how many retries happen
