@@ -320,12 +320,13 @@ var _ = Describe("Handlers", func() {
 			Expect(response).To(EqualAPIResponse(APIResponse{Status: "ok"}))
 		})
 
-		It("responds with a status of ruh roh when there are stale datasets", func() {
+		It("responds with a status of ruh roh when there is a stale dataset", func() {
 			testServer := testHandlerServer(DataSetStatusHandler)
 			defer testServer.Close()
 
 			maxExpectedAge := int64(8400)
-			stale := config.DataSetMetaData{Name: "the-stale-one",
+			stale := config.DataSetMetaData{
+				Name:           "the-stale-one",
 				Published:      true,
 				MaxExpectedAge: &maxExpectedAge}
 
@@ -343,6 +344,39 @@ var _ = Describe("Handlers", func() {
 				Errors: []ErrorInfo{
 					ErrorInfo{
 						Detail: "name: the-stale-one, seconds-out-of-date: 2592000, last-updated: " + roughly30DaysAgo.String() + ", max-age-expected: 8400"}}}))
+		})
+
+		It("responds with a status of ruh roh when there are stale datasets", func() {
+			testServer := testHandlerServer(DataSetStatusHandler)
+			defer testServer.Close()
+
+			maxExpectedAge := int64(8400)
+			stale1 := config.DataSetMetaData{
+				Name:           "the-stale-one",
+				Published:      true,
+				MaxExpectedAge: &maxExpectedAge}
+			stale2 := config.DataSetMetaData{
+				Name:           "the-other-stale-one",
+				Published:      true,
+				MaxExpectedAge: &maxExpectedAge}
+
+			ConfigAPIClient = newTestConfigAPIClient(nil, nil,
+				[]config.DataSetMetaData{
+					config.DataSetMetaData{},
+					stale1,
+					stale2})
+
+			response, err := http.Get(testServer.URL)
+			Expect(err).To(BeNil())
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+			Expect(response).To(EqualAPIResponse(APIResponse{Status: "not okay",
+				Message: "2 data-sets are out of date",
+				Errors: []ErrorInfo{
+					ErrorInfo{
+						Detail: "name: the-stale-one, seconds-out-of-date: 2592000, last-updated: " + roughly30DaysAgo.String() + ", max-age-expected: 8400"},
+					ErrorInfo{
+						Detail: "name: the-other-stale-one, seconds-out-of-date: 2592000, last-updated: " + roughly30DaysAgo.String() + ", max-age-expected: 8400"}}}))
 		})
 	})
 
