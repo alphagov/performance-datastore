@@ -111,8 +111,19 @@ type TestConfigAPIClient struct {
 	DataSets []config.DataSetMetaData
 }
 
-func newTestConfigAPIClient(err error, metaData *config.DataSetMetaData, datasets []config.DataSetMetaData) config.Client {
-	return &TestConfigAPIClient{err, metaData, datasets}
+type TestConfigAPIClientOption func(*TestConfigAPIClient) TestConfigAPIClientOption
+
+func newTestConfigAPIClient(options ...TestConfigAPIClientOption) config.Client {
+	result := TestConfigAPIClient{}
+	result.options(options...)
+	return &result
+}
+
+func (c *TestConfigAPIClient) options(opts ...TestConfigAPIClientOption) (previous TestConfigAPIClientOption) {
+	for _, opt := range opts {
+		previous = opt(c)
+	}
+	return previous
 }
 
 func (c *TestConfigAPIClient) DataSet(name string) (*config.DataSetMetaData, error) {
@@ -127,6 +138,31 @@ func (c *TestConfigAPIClient) ListDataSets() ([]config.DataSetMetaData, error) {
 	return c.DataSets, c.Error
 }
 
+func ClientError(e error) TestConfigAPIClientOption {
+	return func(c *TestConfigAPIClient) TestConfigAPIClientOption {
+		previous := c.Error
+		c.Error = e
+		return ClientError(previous)
+	}
+}
+
+func MetaData(metaData *config.DataSetMetaData) TestConfigAPIClientOption {
+	return func(c *TestConfigAPIClient) TestConfigAPIClientOption {
+		previous := c.MetaData
+		c.MetaData = metaData
+		return MetaData(previous)
+	}
+}
+
+func DataSets(dataSets ...config.DataSetMetaData) TestConfigAPIClientOption {
+	return func(c *TestConfigAPIClient) TestConfigAPIClientOption {
+		previous := c.DataSets
+		c.DataSets = dataSets
+		return DataSets(previous...)
+	}
+}
+
+// incOperation captures information about statsd Incr invocations
 type incOperation struct {
 	stat  string
 	count int64
@@ -279,7 +315,7 @@ var _ = Describe("Handlers", func() {
 			testServer := testHandlerServer(DataSetStatusHandler)
 			defer testServer.Close()
 
-			ConfigAPIClient = newTestConfigAPIClient(nil, nil, nil)
+			ConfigAPIClient = newTestConfigAPIClient()
 
 			response, err := http.Get(testServer.URL)
 			Expect(err).To(BeNil())
@@ -293,7 +329,7 @@ var _ = Describe("Handlers", func() {
 			testServer := testHandlerServer(DataSetStatusHandler)
 			defer testServer.Close()
 
-			ConfigAPIClient = newTestConfigAPIClient(fmt.Errorf("Unable to connect to host"), nil, nil)
+			ConfigAPIClient = newTestConfigAPIClient(ClientError(fmt.Errorf("Unable to connect to host")))
 
 			response, err := http.Get(testServer.URL)
 			Expect(err).To(BeNil())
@@ -308,10 +344,10 @@ var _ = Describe("Handlers", func() {
 			testServer := testHandlerServer(DataSetStatusHandler)
 			defer testServer.Close()
 
-			ConfigAPIClient = newTestConfigAPIClient(nil, nil,
-				[]config.DataSetMetaData{
+			ConfigAPIClient = newTestConfigAPIClient(
+				DataSets(
 					config.DataSetMetaData{},
-					config.DataSetMetaData{}})
+					config.DataSetMetaData{}))
 
 			response, err := http.Get(testServer.URL)
 			Expect(err).To(BeNil())
@@ -320,19 +356,20 @@ var _ = Describe("Handlers", func() {
 			Expect(response).To(EqualAPIResponse(APIResponse{Status: "ok"}))
 		})
 
-		It("responds with a status of ruh roh when there are stale datasets", func() {
+		It("responds with a status of ruh roh when there is a stale dataset", func() {
 			testServer := testHandlerServer(DataSetStatusHandler)
 			defer testServer.Close()
 
 			maxExpectedAge := int64(8400)
-			stale := config.DataSetMetaData{Name: "the-stale-one",
+			stale := config.DataSetMetaData{
+				Name:           "the-stale-one",
 				Published:      true,
 				MaxExpectedAge: &maxExpectedAge}
 
-			ConfigAPIClient = newTestConfigAPIClient(nil, nil,
-				[]config.DataSetMetaData{
+			ConfigAPIClient = newTestConfigAPIClient(
+				DataSets(
 					config.DataSetMetaData{},
-					stale})
+					stale))
 
 			response, err := http.Get(testServer.URL)
 			Expect(err).To(BeNil())
@@ -343,6 +380,39 @@ var _ = Describe("Handlers", func() {
 				Errors: []ErrorInfo{
 					ErrorInfo{
 						Detail: "name: the-stale-one, seconds-out-of-date: 2592000, last-updated: " + roughly30DaysAgo.String() + ", max-age-expected: 8400"}}}))
+		})
+
+		It("responds with a status of ruh roh when there are stale datasets", func() {
+			testServer := testHandlerServer(DataSetStatusHandler)
+			defer testServer.Close()
+
+			maxExpectedAge := int64(8400)
+			stale1 := config.DataSetMetaData{
+				Name:           "the-stale-one",
+				Published:      true,
+				MaxExpectedAge: &maxExpectedAge}
+			stale2 := config.DataSetMetaData{
+				Name:           "the-other-stale-one",
+				Published:      true,
+				MaxExpectedAge: &maxExpectedAge}
+
+			ConfigAPIClient = newTestConfigAPIClient(
+				DataSets(
+					config.DataSetMetaData{},
+					stale1,
+					stale2))
+
+			response, err := http.Get(testServer.URL)
+			Expect(err).To(BeNil())
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+			Expect(response).To(EqualAPIResponse(APIResponse{Status: "not okay",
+				Message: "2 data-sets are out of date",
+				Errors: []ErrorInfo{
+					ErrorInfo{
+						Detail: "name: the-stale-one, seconds-out-of-date: 2592000, last-updated: " + roughly30DaysAgo.String() + ", max-age-expected: 8400"},
+					ErrorInfo{
+						Detail: "name: the-other-stale-one, seconds-out-of-date: 2592000, last-updated: " + roughly30DaysAgo.String() + ", max-age-expected: 8400"}}}))
 		})
 	})
 
@@ -360,11 +430,23 @@ var _ = Describe("Handlers", func() {
 			defer testServer.Close()
 		})
 
+		It("Should fail when the config API is unavailable", func() {
+			ConfigAPIClient = newTestConfigAPIClient(ClientError(fmt.Errorf("Unable to connect to host")))
+
+			req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
+
+			response, err := client.Do(req)
+
+			Expect(err).Should(BeNil())
+			Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+
+			Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Unable to connect to host")))
+		})
+
 		Context("When there is no valid Authorization credentials", func() {
 			It("Should fail with an Authorization required response when there is no Authorization header", func() {
-				ConfigAPIClient = newTestConfigAPIClient(nil,
-					&config.DataSetMetaData{Name: "the-dataset"},
-					nil)
+				ConfigAPIClient = newTestConfigAPIClient(
+					MetaData(&config.DataSetMetaData{Name: "the-dataset"}))
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
 
 				response, err := client.Do(req)
@@ -377,9 +459,8 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should fail with an Authorization required response when the Authorization header isn't a valid bearer token", func() {
-				ConfigAPIClient = newTestConfigAPIClient(nil,
-					&config.DataSetMetaData{Name: "the-dataset"},
-					nil)
+				ConfigAPIClient = newTestConfigAPIClient(
+					MetaData(&config.DataSetMetaData{Name: "the-dataset"}))
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
 				req.Header.Add("Authorization", "Not a bearer token")
 
@@ -393,9 +474,9 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should fail with an Authorization required response when the Authorization bearer token does not match the data set bearer token", func() {
-				ConfigAPIClient = newTestConfigAPIClient(nil,
-					&config.DataSetMetaData{Name: "the-dataset"},
-					nil)
+				ConfigAPIClient = newTestConfigAPIClient(
+					MetaData(
+						&config.DataSetMetaData{Name: "the-dataset"}))
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
 				req.Header.Add("Authorization", "Not a bearer token")
 
@@ -409,9 +490,8 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should fail with an Authorization required response when the Authorization bearer token does not match the data set bearer token", func() {
-				ConfigAPIClient = newTestConfigAPIClient(nil,
-					&config.DataSetMetaData{BearerToken: "the-bearer-token", Name: "the-dataset"},
-					nil)
+				ConfigAPIClient = newTestConfigAPIClient(
+					MetaData(&config.DataSetMetaData{BearerToken: "the-bearer-token", Name: "the-dataset"}))
 				req, err := http.NewRequest("POST", testServer.URL+"/data/a-data-group/a-data-type", nil)
 				req.Header.Add("Authorization", "Not a bearer token")
 
@@ -427,9 +507,8 @@ var _ = Describe("Handlers", func() {
 
 		Context("When there are valid Authorization credentials", func() {
 			BeforeEach(func() {
-				ConfigAPIClient = newTestConfigAPIClient(nil,
-					&config.DataSetMetaData{BearerToken: "the-bearer-token", Name: "the-dataset"},
-					nil)
+				ConfigAPIClient = newTestConfigAPIClient(
+					MetaData(&config.DataSetMetaData{BearerToken: "the-bearer-token", Name: "the-dataset"}))
 				DataSetStorage = newTestDataSetStorage(Alive(true), Exists(true))
 			})
 
@@ -611,11 +690,23 @@ var _ = Describe("Handlers", func() {
 			defer testServer.Close()
 		})
 
+		It("Should fail when the config API is unavailable", func() {
+			ConfigAPIClient = newTestConfigAPIClient(ClientError(fmt.Errorf("Unable to connect to host")))
+
+			req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type", nil)
+
+			response, err := client.Do(req)
+
+			Expect(err).Should(BeNil())
+			Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+
+			Expect(response).Should(EqualAPIResponse(newErrorAPIResponse("Unable to connect to host")))
+		})
+
 		Context("When there is no valid Authorization credentials", func() {
 			It("Should fail with an Authorization required response when there is no Authorization header", func() {
-				ConfigAPIClient = newTestConfigAPIClient(nil,
-					&config.DataSetMetaData{},
-					nil)
+				ConfigAPIClient = newTestConfigAPIClient(
+					MetaData(&config.DataSetMetaData{}))
 				req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type", nil)
 
 				response, err := client.Do(req)
@@ -628,9 +719,8 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should fail with an Authorization required response when the Authorization header isn't a valid bearer token", func() {
-				ConfigAPIClient = newTestConfigAPIClient(nil,
-					&config.DataSetMetaData{Name: "the-dataset"},
-					nil)
+				ConfigAPIClient = newTestConfigAPIClient(
+					MetaData(&config.DataSetMetaData{Name: "the-dataset"}))
 				req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type", nil)
 				req.Header.Add("Authorization", "Not a bearer token")
 
@@ -644,9 +734,8 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should fail with an Authorization required response when the Authorization bearer token does not match the data set bearer token", func() {
-				ConfigAPIClient = newTestConfigAPIClient(nil,
-					&config.DataSetMetaData{Name: "the-dataset"},
-					nil)
+				ConfigAPIClient = newTestConfigAPIClient(
+					MetaData(&config.DataSetMetaData{Name: "the-dataset"}))
 				req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type", nil)
 				req.Header.Add("Authorization", "Not a bearer token")
 
@@ -659,9 +748,8 @@ var _ = Describe("Handlers", func() {
 			})
 
 			It("Should fail with an Authorization required response when the Authorization bearer token does not match the data set bearer token", func() {
-				ConfigAPIClient = newTestConfigAPIClient(nil,
-					&config.DataSetMetaData{BearerToken: "the-bearer-token", Name: "the-dataset"},
-					nil)
+				ConfigAPIClient = newTestConfigAPIClient(
+					MetaData(&config.DataSetMetaData{BearerToken: "the-bearer-token", Name: "the-dataset"}))
 				req, err := http.NewRequest("PUT", testServer.URL+"/data/a-data-group/a-data-type", nil)
 				req.Header.Add("Authorization", "Not a bearer token")
 
@@ -676,11 +764,11 @@ var _ = Describe("Handlers", func() {
 
 		Context("When there are valid Authorization credentials", func() {
 			BeforeEach(func() {
-				ConfigAPIClient = newTestConfigAPIClient(nil,
-					&config.DataSetMetaData{
-						BearerToken: "the-bearer-token",
-						Name:        "the-dataset"},
-					nil)
+				ConfigAPIClient = newTestConfigAPIClient(
+					MetaData(
+						&config.DataSetMetaData{
+							BearerToken: "the-bearer-token",
+							Name:        "the-dataset"}))
 				DataSetStorage = newTestDataSetStorage(Alive(true), Exists(true))
 			})
 
