@@ -7,7 +7,7 @@ IMPORT_PATH := $(IMPORT_BASE)/performance-datastore
 all: deps _vendor fmt test build
 
 deps:
-	go get github.com/mattn/gom
+	# go get github.com/mattn/gom
 	go get github.com/onsi/ginkgo/ginkgo
 	go get code.google.com/p/go.tools/cmd/cover
 
