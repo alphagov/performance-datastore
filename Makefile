@@ -7,16 +7,16 @@ IMPORT_PATH := $(IMPORT_BASE)/performance-datastore
 all: deps _vendor fmt test build
 
 deps:
-	# go get github.com/mattn/gom
-	go get github.com/onsi/ginkgo/ginkgo
-	go get code.google.com/p/go.tools/cmd/cover
+	-go get github.com/mattn/gom
+	-go get code.google.com/p/go.tools/cmd/cover
+	-go get golang.org/x/tools/cmd/cover
 
 fmt:
 	gofmt -w=1 *.go
 	gofmt -w=1 pkg
 
 test:
-	gom exec ginkgo -cover \
+	gom test -cover \
 		. \
 		./pkg/config/ \
 		./pkg/dataset/ \
@@ -28,7 +28,7 @@ test:
 	find . -name '*.coverprofile' -type f -exec sed -i '' 's|_'$(CURDIR)'|\.|' {} \;
 
 build:
-	gom build -o $(BINARY)
+	gom build -race -o $(BINARY)
 
 clean:
 	rm -rf $(BINARY)
