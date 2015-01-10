@@ -30,7 +30,7 @@ func main() {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
-	handlers.ConfigAPIClient = config.NewClient(configAPIURL, bearerToken)
+	handlers.ConfigAPIClient = config.NewClient(configAPIURL, bearerToken, logger)
 	handlers.DataSetStorage = handlers.NewMongoStorage(mongoURL, databaseName)
 	handlers.StatsdClient = handlers.NewStatsDClient("localhost:8125", "datastore.")
 

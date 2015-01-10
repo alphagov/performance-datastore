@@ -4,7 +4,9 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/onsi/gomega/ghttp"
+
 	"net/http"
 )
 
@@ -15,7 +17,7 @@ var _ = Describe("Config API", func() {
 
 	BeforeEach(func() {
 		server = ghttp.NewServer()
-		client = NewClient(server.URL(), "EMPTY")
+		client = NewClient(server.URL(), "EMPTY", logrus.New())
 	})
 
 	AfterEach(func() {

@@ -58,6 +58,10 @@ func NewRequest(url, bearerToken string, options ...Option) (*http.Response, err
 		return nil, ErrNotFound
 	}
 
+	if response.StatusCode/100 != 2 {
+		err = fmt.Errorf("Unexpected status code %d", response.StatusCode)
+	}
+
 	return response, err
 }
 
