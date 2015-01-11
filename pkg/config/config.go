@@ -2,7 +2,10 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/alphagov/performance-datastore/pkg/request"
+	"reflect"
 )
 
 // DataSetMetaData defines the data structure returned by our meta data API
@@ -35,78 +38,88 @@ type Client interface {
 type defaultClient struct {
 	baseURL     string
 	bearerToken string
+	logger      *logrus.Logger
 }
 
 // NewClient returns a new Client implementation with sensible defaults.
-func NewClient(baseURL string, bearerToken string) Client {
-	return &defaultClient{baseURL, bearerToken}
+func NewClient(baseURL string, bearerToken string, logger *logrus.Logger) Client {
+	return &defaultClient{baseURL, bearerToken, logger}
 }
 
 func (c *defaultClient) DataSet(name string) (*DataSetMetaData, error) {
-	res, err := c.get("/data-sets/" + name)
+	var holder DataSetMetaData
+	err := c.fetch("/data-sets/"+name, &holder)
 
 	if err != nil {
 		return nil, err
 	}
 
-	d := DataSetMetaData{}
-
-	err = json.Unmarshal(res, &d)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &d, nil
+	return &holder, nil
 }
 
-func (c *defaultClient) DataType(group string, dataType string) (*DataSetMetaData, error) {
-	res, err := c.get("/data-sets?data-group=" + group + "&data-type=" + dataType)
+func (c *defaultClient) DataType(group string, dataType string) (result *DataSetMetaData, err error) {
+	var holder []DataSetMetaData
+	err = c.fetch("/data-sets?data-group="+group+"&data-type="+dataType, &holder)
 
 	if err != nil {
 		return nil, err
 	}
 
-	d := []DataSetMetaData{}
-
-	err = json.Unmarshal(res, &d)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &d[0], nil
+	return &holder[0], nil
 }
 
-func (c *defaultClient) ListDataSets() ([]DataSetMetaData, error) {
-	res, err := c.get("/data-sets")
+func (c *defaultClient) ListDataSets() (result []DataSetMetaData, err error) {
+	var holder []DataSetMetaData
+	err = c.fetch("/data-sets", &holder)
 
 	if err != nil {
 		return nil, err
 	}
 
-	d := []DataSetMetaData{}
+	return holder, nil
+}
 
-	err = json.Unmarshal(res, &d)
+func (c *defaultClient) fetch(url string, result interface{}) error {
+	res, err := c.get(url)
 
 	if err != nil {
-		return nil, err
+		var message string
+		if res != nil {
+			message = string(res)
+		}
+		c.logger.Errorf("%v %v", err, message)
+		return err
 	}
 
-	return d, nil
+	switch kind := reflect.TypeOf(result).Kind(); kind {
+	case reflect.Ptr:
+	default:
+		return fmt.Errorf("parameter result should be a pointer, but is %v", kind)
+	}
+
+	err = json.Unmarshal(res, result)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *defaultClient) get(path string) (body []byte, err error) {
-	response, err := request.NewRequest(c.baseURL+path, c.bearerToken)
+	response, requestErr := request.NewRequest(c.baseURL+path, c.bearerToken)
+	body, readErr := request.ReadResponseBody(response)
 
-	if err != nil {
-		return nil, err
+	if requestErr != nil {
+		// Can we potentially return a JSON error document?
+		if readErr == nil {
+			return body, requestErr
+		}
+		return nil, requestErr
 	}
 
-	body, err = request.ReadResponseBody(response)
-
-	if err != nil {
-		return nil, err
+	if readErr != nil {
+		return nil, readErr
 	}
 
 	return body, nil

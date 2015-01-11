@@ -90,6 +90,18 @@ var _ = Describe("NewRequest", func() {
 		Expect(err).ShouldNot(BeNil())
 		Expect(err).Should(Equal(ErrNotFound))
 	})
+
+	It("propagates 401s", func() {
+		ts := testServer(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusUnauthorized)
+		})
+		defer ts.Close()
+		response, err := NewRequest(ts.URL, "FOO")
+		// Allow clients to examine the response body
+		Expect(response).ShouldNot(BeNil())
+		Expect(err).ShouldNot(BeNil())
+		Expect(err.Error()).Should(Equal("Unexpected status code 401"))
+	})
 })
 
 func testServer(handler interface{}) *httptest.Server {
