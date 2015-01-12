@@ -3,6 +3,7 @@ gom 'github.com/alext/tablecloth', :commit => 'b373a9a6ff0ebb8953da0681db7a72202
 gom 'github.com/cenkalti/backoff', :commit => '9b3b0d8135f565e3777f12db974d1c54c5b02d47'
 gom 'github.com/codegangsta/inject', :commit => '4b8172520a03fa190f427bbd284db01b459bfce7'
 gom 'github.com/go-martini/martini', :commit => '7d32ea3fa6590565c928b90a48178b60b96df98f'
+gom 'github.com/hashicorp/errwrap', :commit => '7554cd9344cec97297fa6649b055a8c98c2a1e55'
 gom 'github.com/quipo/statsd', :commit => 'e260042c957aa6ffa369c4f38c21d66cfad15ffc'
 gom 'github.com/xeipuuv/gojsonpointer', :commit => '57ab5e9c764219a3e0c4d7759797fefdcab22e9c'
 gom 'github.com/xeipuuv/gojsonreference', :commit => '47e61ed14ee33a23dadf5baffffc7d1b35d0b0ec'
