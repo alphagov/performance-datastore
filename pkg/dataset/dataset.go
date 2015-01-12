@@ -2,9 +2,9 @@ package dataset
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"github.com/alphagov/performance-datastore/pkg/config"
+	"github.com/alphagov/performance-datastore/pkg/utils"
 	"github.com/alphagov/performance-datastore/pkg/validation"
 	"github.com/xeipuuv/gojsonschema"
 	"strings"
@@ -176,7 +176,7 @@ func (d DataSet) ValidateAgainstSchema(data []map[string]interface{}, errors *[]
 
 	if schema != nil {
 		var jsonDoc map[string]interface{}
-		err := json.Unmarshal(d.MetaData.Schema, &jsonDoc)
+		err := utils.Unmarshal(d.MetaData.Schema, &jsonDoc)
 
 		if err != nil {
 			panic(err)

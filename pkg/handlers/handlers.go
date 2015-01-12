@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/alphagov/performance-datastore/pkg/config"
 	"github.com/alphagov/performance-datastore/pkg/dataset"
+	"github.com/alphagov/performance-datastore/pkg/utils"
 	"github.com/go-martini/martini"
 	"io/ioutil"
 	"net/http"
@@ -118,7 +118,7 @@ func handleWriteRequest(
 	}
 
 	var data interface{}
-	err = json.Unmarshal(jsonBytes, &data)
+	err = utils.Unmarshal(jsonBytes, &data)
 
 	if err != nil {
 		renderError(w, http.StatusBadRequest, "Error parsing JSON: "+err.Error())
