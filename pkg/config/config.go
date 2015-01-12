@@ -2,10 +2,9 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/alphagov/performance-datastore/pkg/request"
-	"reflect"
+	"github.com/alphagov/performance-datastore/pkg/utils"
 )
 
 // DataSetMetaData defines the data structure returned by our meta data API
@@ -91,19 +90,7 @@ func (c *defaultClient) fetch(url string, result interface{}) error {
 		return err
 	}
 
-	switch kind := reflect.TypeOf(result).Kind(); kind {
-	case reflect.Ptr:
-	default:
-		return fmt.Errorf("parameter result should be a pointer, but is %v", kind)
-	}
-
-	err = json.Unmarshal(res, result)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return utils.Unmarshal(res, result)
 }
 
 func (c *defaultClient) get(path string) (body []byte, err error) {
