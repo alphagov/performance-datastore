@@ -2,6 +2,7 @@ package request
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -101,6 +102,14 @@ var _ = Describe("NewRequest", func() {
 		Expect(response).ShouldNot(BeNil())
 		Expect(err).ShouldNot(BeNil())
 		Expect(err.Error()).Should(Equal("Unexpected status code 401"))
+	})
+})
+
+var _ = Describe("ReadResponseBody", func() {
+	It("errors when given a nil response", func() {
+		body, err := ReadResponseBody(nil)
+		Expect(body).Should(BeNil())
+		Expect(err).Should(Equal(io.ErrUnexpectedEOF))
 	})
 })
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cenkalti/backoff"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -76,6 +77,9 @@ func MaxElapsedTime(duration time.Duration) Option {
 
 // ReadResponseBody reads the response body stream and returns a byte array, or an error if there was a problem.
 func ReadResponseBody(response *http.Response) ([]byte, error) {
+	if response == nil {
+		return nil, io.ErrUnexpectedEOF
+	}
 	defer response.Body.Close()
 	return ioutil.ReadAll(response.Body)
 }
