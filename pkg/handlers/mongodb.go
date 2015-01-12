@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/alphagov/performance-datastore/pkg/dataset"
+	"github.com/hashicorp/errwrap"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"time"
@@ -22,7 +23,7 @@ func getMgoSession(URL string) *mgo.Session {
 		var err error
 		mgoSession, err = mgo.DialWithTimeout(URL, 5*time.Second)
 		if err != nil {
-			panic(err)
+			panic(errwrap.Wrapf("Unable to connect: {{err}}", err))
 		}
 		// Set timeout to suitably small value by default.
 		mgoSession.SetSyncTimeout(5 * time.Second)
@@ -58,7 +59,7 @@ func (m *MongoDataSetStorage) Exists(name string) bool {
 	names, err := session.DB(m.DatabaseName).CollectionNames()
 
 	if err != nil {
-		panic(err)
+		panic(errwrap.Wrapf("DataSet <"+name+"> doesn't exist in <"+m.DatabaseName+">: {{err}}", err))
 	}
 
 	for _, n := range names {
@@ -103,7 +104,7 @@ func (m *MongoDataSetStorage) LastUpdated(name string) (t *time.Time) {
 	err := coll.Find(nil).Sort("-_updated_at").One(&lastUpdated)
 
 	if err != nil {
-		panic(err)
+		panic(errwrap.Wrapf("Problem reading dataset <"+name+"> in <"+m.DatabaseName+">: {{err}}", err))
 	}
 
 	t = nil
