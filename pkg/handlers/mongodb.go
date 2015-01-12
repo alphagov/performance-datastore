@@ -102,6 +102,10 @@ func (m *MongoDataSetStorage) LastUpdated(name string) (t *time.Time) {
 	coll := session.DB(m.DatabaseName).C(name)
 	err := coll.Find(nil).Sort("-_updated_at").One(&lastUpdated)
 
+	if err == mgo.ErrNotFound {
+		return nil
+	}
+
 	if err != nil {
 		panic(err)
 	}
