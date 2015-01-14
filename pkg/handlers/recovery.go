@@ -5,12 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"reflect"
 	"runtime"
-
-	"github.com/Sirupsen/logrus"
-	"github.com/alphagov/performance-datastore/pkg/dataset"
-	"github.com/go-martini/martini"
 )
 
 const (
@@ -113,37 +108,30 @@ func function(pc uintptr) []byte {
 }
 
 // NewRecoveryHandler returns a middleware that recovers from any panics and writes a 500 if there was one.
-// While Martini is in development mode, NewRecoveryHandler will also output the panic as HTML.
-func NewRecoveryHandler() martini.Handler {
-	return func(w http.ResponseWriter, req *http.Request, c martini.Context, logger *logrus.Logger) {
+func NewRecoveryHandler(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
 				stack := stack(3)
+				logger := getLogger(req)
 				logger.Printf("PANIC: %s\n%s", err, stack)
 
-				StatsdClient.Incr("write.error."+datasetNameOrPath(c, req), 1)
+				StatsdClient.Incr("write.error."+datasetNameOrPath(req), 1)
 
 				// respond with panic message while in development mode
-				if martini.Env == martini.Dev {
-					w.Header().Set("Content-Type", "text/html")
-					body := []byte(fmt.Sprintf(panicHTML, err, err, stack))
-					w.WriteHeader(http.StatusInternalServerError)
-					w.Write(body)
-				} else {
-					w.Header().Set("Content-Type", "application/json")
-					renderError(w, http.StatusInternalServerError, fmt.Sprintf("%v", err))
-				}
+				w.Header().Set("Content-Type", "application/json")
+				renderError(w, http.StatusInternalServerError, fmt.Sprintf("%v", err))
 			}
 		}()
 
-		c.Next()
-	}
+		h.ServeHTTP(w, req)
+	})
 }
 
-func datasetNameOrPath(c martini.Context, req *http.Request) string {
-	val := c.Get(reflect.TypeOf(dataset.DataSet{}))
-	if val.IsValid() {
-		return val.Interface().(dataset.DataSet).Name()
+func datasetNameOrPath(req *http.Request) string {
+	res := getDatasetName(req)
+	if len(res) > 0 {
+		return res
 	}
 	return req.URL.Path
 }

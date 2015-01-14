@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/go-martini/martini"
 	"io"
 	"net/http"
 )
@@ -48,17 +47,18 @@ func (gz *gzipReader) Close() error {
 	return gz.body.Close()
 }
 
-// NewDecompressingMiddleware returns a martini.Handler middleware which can decompress request bodies on the fly.
-func NewDecompressingMiddleware(maxSize int) martini.Handler {
-	return func(res http.ResponseWriter, req *http.Request, c martini.Context, logger *logrus.Logger) {
+// NewDecompressingHandler returns a http.Handler middleware which can decompress request bodies on the fly.
+func NewDecompressingHandler(h http.Handler, maxSize int) http.Handler {
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		contentEncoding := req.Header["Content-Encoding"]
 		for _, v := range contentEncoding {
 			if v == "gzip" {
+				logger := getLogger(req)
 				logger.Debugln("Decompressing request")
 				req.Body = &gzipReader{body: req.Body, maxSize: maxSize, response: res, logger: logger}
 			}
 		}
 
-		c.Next()
-	}
+		h.ServeHTTP(res, req)
+	})
 }
