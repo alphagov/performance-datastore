@@ -11,7 +11,6 @@ import (
 	"net/http/httptest"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/go-martini/martini"
 	"github.com/quipo/statsd"
 
 	"github.com/alphagov/performance-datastore/pkg/config"
@@ -242,7 +241,6 @@ var _ = Describe("Handlers", func() {
 
 	BeforeEach(func() {
 		testServer = testHandlerServer(newHandler(10000000))
-		martini.Env = martini.Test
 		StatsdClient = NewStatsDClient("localhost:8125", "datastore.")
 	})
 

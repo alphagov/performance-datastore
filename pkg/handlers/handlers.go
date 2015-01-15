@@ -6,7 +6,8 @@ import (
 	"github.com/alphagov/performance-datastore/pkg/config"
 	"github.com/alphagov/performance-datastore/pkg/dataset"
 	"github.com/alphagov/performance-datastore/pkg/utils"
-	"github.com/go-martini/martini"
+	"github.com/gorilla/context"
+	"github.com/gorilla/mux"
 	"io/ioutil"
 	"net/http"
 	"reflect"
@@ -23,26 +24,31 @@ type goodJSONContinuation func(jsonArray []interface{}, dataSet dataset.DataSet)
 
 // NewHandler returns an http.Handler implementation for the server.
 func NewHandler(maxGzipBody int, logger *logrus.Logger) http.Handler {
-	m := martini.Classic()
-	m.Map(logger)
-	m.Handlers(
-		NewLoggingMiddleware(),
-		NewRecoveryHandler(),
-		martini.Static("public"),
-		NewDecompressingMiddleware(maxGzipBody))
-	m.Get("/_status", StatusHandler)
-	m.Post("/_status", MethodNotAllowedHandler)
-	m.Get("/_status/data-sets", DataSetStatusHandler)
-	m.Post("/data/:data_group/:data_type", CreateHandler)
-	m.Put("/data/:data_group/:data_type", UpdateHandler)
-	return m
+	router := mux.NewRouter()
+
+	// We wrap the http.Handler chain in a ClearHandler. We want the logger and
+	// things available for use in our other middleware
+	router.KeepContext = true
+
+	router.HandleFunc("/_status", StatusHandler).Methods("GET", "HEAD")
+	router.HandleFunc("/_status", MethodNotAllowedHandler)
+	router.HandleFunc("/_status/data-sets", DataSetStatusHandler).Methods("GET", "HEAD")
+	router.HandleFunc("/data/{data_group}/{data_type}", CreateHandler).Methods("POST")
+	router.HandleFunc("/data/{data_group}/{data_type}", UpdateHandler).Methods("PUT")
+
+	// Wrap up all our middleware
+	return context.ClearHandler(
+		NewLoggingHandler(
+			NewRecoveryHandler(
+				NewDecompressingHandler(router, maxGzipBody)),
+			logger))
 }
 
 // CreateHandler is responsible for creating data
 //
 // POST /data/:data_group/:data_type
-func CreateHandler(c martini.Context, w http.ResponseWriter, r *http.Request, params martini.Params) {
-	handleWriteRequest(c, w, r, params, func(jsonArray []interface{}, dataSet dataset.DataSet) {
+func CreateHandler(w http.ResponseWriter, r *http.Request) {
+	handleWriteRequest(w, r, func(jsonArray []interface{}, dataSet dataset.DataSet) {
 		errors := dataSet.Append(jsonArray)
 
 		if len(errors) > 0 {
@@ -61,8 +67,8 @@ func CreateHandler(c martini.Context, w http.ResponseWriter, r *http.Request, pa
 // UpdateHandler is responsible for updating data
 //
 // PUT /data/:data_group/:data_type
-func UpdateHandler(c martini.Context, w http.ResponseWriter, r *http.Request, params martini.Params) {
-	handleWriteRequest(c, w, r, params, func(jsonArray []interface{}, dataSet dataset.DataSet) {
+func UpdateHandler(w http.ResponseWriter, r *http.Request) {
+	handleWriteRequest(w, r, func(jsonArray []interface{}, dataSet dataset.DataSet) {
 		if len(jsonArray) > 0 {
 			renderError(w, http.StatusBadRequest, "Not implemented: you can only pass an empty JSON list")
 			return
@@ -78,11 +84,11 @@ func UpdateHandler(c martini.Context, w http.ResponseWriter, r *http.Request, pa
 }
 
 func handleWriteRequest(
-	c martini.Context,
 	w http.ResponseWriter,
 	r *http.Request,
-	params martini.Params,
 	continuation goodJSONContinuation) {
+
+	params := mux.Vars(r)
 
 	metaData, err := fetchDataMetaData(params["data_group"], params["data_type"])
 	if err != nil {
@@ -93,7 +99,7 @@ func handleWriteRequest(
 	dataSet := dataset.DataSet{DataSetStorage, *metaData}
 
 	// Make the dataSet available to the request context
-	c.Map(dataSet)
+	setDatasetName(r, dataSet.Name())
 
 	err = validateAuthorization(r, dataSet)
 	if err != nil {
