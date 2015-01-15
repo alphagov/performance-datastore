@@ -4,6 +4,8 @@ BINARY := performance-datastore
 IMPORT_BASE := github.com/alphagov
 IMPORT_PATH := $(IMPORT_BASE)/performance-datastore
 
+GOOS := $(shell uname | tr '[:upper:]' '[:lower:]')
+
 all: deps _vendor fmt test build
 
 deps:
@@ -28,7 +30,7 @@ test:
 	find . -name '*.coverprofile' -type f -exec sed -i '' 's|_'$(CURDIR)'|\.|' {} \;
 
 build:
-	gom build -race -o $(BINARY)
+	GO_ENABLED=0 GOOS=$(GOOS) gom build -race -a -tags netgo -ldflags '-w' -o $(BINARY) .
 
 clean:
 	rm -rf $(BINARY)
