@@ -2,17 +2,18 @@ package handlers
 
 import (
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"reflect"
+	"strings"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/alphagov/performance-datastore/pkg/config"
 	"github.com/alphagov/performance-datastore/pkg/dataset"
 	"github.com/alphagov/performance-datastore/pkg/utils"
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
-	"io/ioutil"
-	"net/http"
-	"reflect"
-	"strings"
-	"time"
 )
 
 // goodJSONContinuation is the signature of the function called by handleWriteRequest if:

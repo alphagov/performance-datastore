@@ -1,11 +1,12 @@
 package handlers
 
 import (
+	"time"
+
 	"github.com/alphagov/performance-datastore/pkg/dataset"
 	"github.com/hashicorp/errwrap"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"time"
 )
 
 var (

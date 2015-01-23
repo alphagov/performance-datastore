@@ -1,14 +1,15 @@
 package main
 
 import (
-	"github.com/Sirupsen/logrus"
-	"github.com/alext/tablecloth"
-	"github.com/alphagov/performance-datastore/pkg/config"
-	"github.com/alphagov/performance-datastore/pkg/handlers"
 	"net/http"
 	"os"
 	"strconv"
 	"sync"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/alext/tablecloth"
+	"github.com/alphagov/performance-datastore/pkg/config"
+	"github.com/alphagov/performance-datastore/pkg/handlers"
 )
 
 func main() {

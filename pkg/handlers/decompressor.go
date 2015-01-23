@@ -3,9 +3,10 @@ package handlers
 import (
 	"compress/gzip"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"io"
 	"net/http"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type gzipBombError struct{}

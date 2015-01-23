@@ -3,11 +3,12 @@ package request
 import (
 	"errors"
 	"fmt"
-	"github.com/cenkalti/backoff"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/cenkalti/backoff"
 )
 
 // Option is a self-referential function used to configure a RequestOptions struct.

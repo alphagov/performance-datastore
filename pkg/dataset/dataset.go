@@ -3,12 +3,13 @@ package dataset
 import (
 	"encoding/base64"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/alphagov/performance-datastore/pkg/config"
 	"github.com/alphagov/performance-datastore/pkg/utils"
 	"github.com/alphagov/performance-datastore/pkg/validation"
 	"github.com/xeipuuv/gojsonschema"
-	"strings"
-	"time"
 )
 
 // DataSetStorage defines behaviours that we expect our API to persistent storage to provide.
