@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/alphagov/performance-datastore/pkg/config"
-	"github.com/alphagov/performance-datastore/pkg/dataset"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/alphagov/performance-datastore/pkg/config"
+	"github.com/alphagov/performance-datastore/pkg/dataset"
 )
 
 // StatusHandler is the basic healthcheck for the application

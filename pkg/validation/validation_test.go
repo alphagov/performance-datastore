@@ -3,8 +3,9 @@ package validation
 import (
 	"fmt"
 
-	. "github.com/onsi/ginkgo"
 	"time"
+
+	. "github.com/onsi/ginkgo"
 )
 
 var _ = Describe("Testing with Ginkgo", func() {

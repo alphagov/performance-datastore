@@ -1,12 +1,13 @@
 package handlers
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/alphagov/performance-datastore/pkg/config"
 	"github.com/alphagov/performance-datastore/pkg/dataset"
 	"github.com/quipo/statsd"
 	"gopkg.in/unrolled/render.v1"
-	"net/http"
-	"time"
 )
 
 // ErrorInfo is as described at jsonapi.org

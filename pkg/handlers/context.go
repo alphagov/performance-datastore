@@ -1,9 +1,10 @@
 package handlers
 
 import (
+	"net/http"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/context"
-	"net/http"
 )
 
 const (

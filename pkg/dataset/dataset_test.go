@@ -2,10 +2,11 @@ package dataset
 
 import (
 	"encoding/json"
+	"time"
+
 	"github.com/alphagov/performance-datastore/pkg/config"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"time"
 )
 
 func Unmarshal(t string) map[string]interface{} {

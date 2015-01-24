@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/alphagov/performance-datastore/pkg/request"
 	"github.com/alphagov/performance-datastore/pkg/utils"

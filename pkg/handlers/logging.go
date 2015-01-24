@@ -3,10 +3,11 @@ package handlers
 import (
 	"bufio"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type statusCapturingResponseWriter struct {
