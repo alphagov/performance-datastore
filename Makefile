@@ -6,7 +6,7 @@ IMPORT_PATH := $(IMPORT_BASE)/performance-datastore
 
 GOOS := $(shell uname | tr '[:upper:]' '[:lower:]')
 
-FMT := $(shell { type goimports || type gofmt; } | cut -f 1 -d ' ' 2>/dev/null)
+FMT := $(shell { type goimports || type gofmt; } 2>/dev/null | cut -f 1 -d ' ')
 
 all: deps _vendor fmt test build
 
