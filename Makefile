@@ -6,8 +6,6 @@ IMPORT_PATH := $(IMPORT_BASE)/performance-datastore
 
 GOOS := $(shell uname | tr '[:upper:]' '[:lower:]')
 
-FMT := $(shell { type goimports || type gofmt; } | cut -f 1 -d ' ' 2>/dev/null)
-
 all: deps _vendor fmt test build
 
 deps:
@@ -16,8 +14,8 @@ deps:
 	-go get golang.org/x/tools/cmd/cover
 
 fmt:
-	$(FMT) -w=1 *.go
-	$(FMT) -w=1 pkg
+	gofmt -w=1 *.go
+	gofmt -w=1 pkg
 
 test:
 	gom test -cover \
