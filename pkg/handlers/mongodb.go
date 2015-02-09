@@ -22,7 +22,7 @@ type MongoDataSetStorage struct {
 func getMgoSession(URL string) *mgo.Session {
 	if mgoSession == nil {
 		var err error
-		mgoSession, err = mgo.DialWithTimeout(URL, 5*time.Second)
+		mgoSession, err = mgo.DialWithTimeout(URL, 2*time.Second)
 		if err != nil {
 			panic(errwrap.Wrapf("Unable to connect: {{err}}", err))
 		}

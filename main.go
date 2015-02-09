@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"github.com/alext/tablecloth"
 	"github.com/alphagov/performance-datastore/pkg/config"
 	"github.com/alphagov/performance-datastore/pkg/handlers"
+	"github.com/codahale/healthchecks"
 )
 
 func main() {
@@ -34,6 +36,13 @@ func main() {
 	handlers.ConfigAPIClient = config.NewClient(configAPIURL, bearerToken, logger)
 	handlers.DataSetStorage = handlers.NewMongoStorage(mongoURL, databaseName)
 	handlers.StatsdClient = handlers.NewStatsDClient("localhost:8125", "datastore.")
+
+	healthchecks.Add("mongoConnection", func() error {
+		if handlers.DataSetStorage.Alive() {
+			return nil
+		}
+		return fmt.Errorf("Mongo appears to be unavailable")
+	})
 
 	maxBody, err := strconv.Atoi(maxGzipBody)
 

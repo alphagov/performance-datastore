@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"expvar"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -33,6 +34,7 @@ func NewHandler(maxGzipBody int, logger *logrus.Logger) http.Handler {
 
 	router.HandleFunc("/_status", StatusHandler).Methods("GET", "HEAD")
 	router.HandleFunc("/_status", MethodNotAllowedHandler)
+	router.HandleFunc("/_status/vars", varsHandler)
 	router.HandleFunc("/_status/data-sets", DataSetStatusHandler).Methods("GET", "HEAD")
 	router.HandleFunc("/data/{data_group}/{data_type}", CreateHandler).Methods("POST")
 	router.HandleFunc("/data/{data_group}/{data_type}", UpdateHandler).Methods("PUT")
@@ -43,6 +45,20 @@ func NewHandler(maxGzipBody int, logger *logrus.Logger) http.Handler {
 			NewRecoveryHandler(
 				NewDecompressingHandler(router, maxGzipBody)),
 			logger))
+}
+
+func varsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	fmt.Fprintf(w, "{\n")
+	first := true
+	expvar.Do(func(kv expvar.KeyValue) {
+		if !first {
+			fmt.Fprintf(w, ",\n")
+		}
+		first = false
+		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
+	})
+	fmt.Fprintf(w, "\n}\n")
 }
 
 // CreateHandler is responsible for creating data
