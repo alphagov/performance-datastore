@@ -1,6 +1,8 @@
 gom 'github.com/Sirupsen/logrus', :commit => '3d46664b062c3a468b50e367f115179e26a9462c'
 gom 'github.com/alext/tablecloth', :commit => 'b373a9a6ff0ebb8953da0681db7a72202c73e2ef'
 gom 'github.com/cenkalti/backoff', :commit => '9b3b0d8135f565e3777f12db974d1c54c5b02d47'
+gom 'github.com/codahale/metrics', :commit => '9d788a162cb186f9ced1922fc88d456a82cd16a0'
+gom 'github.com/codahale/healthchecks', :commit => 'f4382a5d25a39d1ce516f48492aa798740f4e7c7'
 gom 'github.com/codegangsta/inject', :commit => '4b8172520a03fa190f427bbd284db01b459bfce7'
 gom 'github.com/gorilla/mux', :commit => 'e444e69cbd2e2e3e0749a2f3c717cec491552bbf'
 gom 'github.com/hashicorp/errwrap', :commit => '7554cd9344cec97297fa6649b055a8c98c2a1e55'
