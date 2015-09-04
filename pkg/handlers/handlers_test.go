@@ -408,9 +408,10 @@ var _ = Describe("Handlers", func() {
 				Message: "2 data-sets are out of date",
 				Errors: []ErrorInfo{
 					ErrorInfo{
-						Detail: "name: the-stale-one, seconds-out-of-date: 2592000, last-updated: " + roughly30DaysAgo.String() + ", max-age-expected: 8400"},
+						Detail: "name: the-other-stale-one, seconds-out-of-date: 2592000, last-updated: " + roughly30DaysAgo.String() + ", max-age-expected: 8400"},
 					ErrorInfo{
-						Detail: "name: the-other-stale-one, seconds-out-of-date: 2592000, last-updated: " + roughly30DaysAgo.String() + ", max-age-expected: 8400"}}}))
+						Detail: "name: the-stale-one, seconds-out-of-date: 2592000, last-updated: " + roughly30DaysAgo.String() + ", max-age-expected: 8400"},
+				}}))
 		})
 	})
 

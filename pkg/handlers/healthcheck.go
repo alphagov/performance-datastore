@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"sort"
 	"sync"
 	"time"
 
@@ -37,6 +38,14 @@ type DataSetStatus struct {
 func (d DataSetStatus) String() string {
 	return fmt.Sprintf("name: %v, seconds-out-of-date: %v, last-updated: %v, max-age-expected: %v", d.Name, d.SecondsOutOfDate, d.LastUpdated, d.MaxAgeExpected)
 }
+
+// ByName implements sort.Interface for []DataSetStatus based on
+// the Name field.
+type ByName []DataSetStatus
+
+func (a ByName) Len() int           { return len(a) }
+func (a ByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
 
 // DataSetStatusHandler is basic healthcheck for all of the datasets
 //
@@ -112,6 +121,8 @@ func summariseStaleness(failing chan DataSetStatus) APIResponse {
 	message = fmt.Sprintf("%d %s out of date", len(failures), pluraliseDataSets(failures))
 
 	errorStrings := make([]string, len(failures))
+
+	sort.Sort(ByName(failures))
 
 	for i, f := range failures {
 		errorStrings[i] = f.String()
